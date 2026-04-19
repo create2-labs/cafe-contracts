@@ -22,8 +22,14 @@ Shared **wire contracts** for the CAFE stack: versioned structs, constants, and 
 
 ## Layout
 
-- `discoverywalletobserved/v01/` — `discovery.wallet.observed` contract family at v0.1 (filled in by the next contract PR).
+- `discoverywalletobserved/v01/` — `discovery.wallet.observed` wire contract (`event_version` **v0.1**): `Event`, `Subject`, `Payload`, exported vocabulary (account kind, algorithm ID, PQ posture, subject type), `Validate()`, and canonical JSON under `testdata/`.
 - `validation/` — tiny, reusable helpers (non-empty strings, field-scoped errors) for contract packages.
+
+Import example:
+
+```go
+import "github.com/create2-labs/cafe-contracts/discoverywalletobserved/v01"
+```
 
 Version directories use a short semver-like segment (`v01` = 0.1) to keep import paths stable and readable.
 
@@ -48,4 +54,4 @@ CI runs tests on pull requests to `main`. Release automation uses [release-pleas
 
 ## Relationship to the rollout plan
 
-Work is tracked in the CAFE CPM prompts document (`cafe_cpm_v1_prompts_0.6.md`). PR0 bootstraps this repository; PR1 adds the first full wire contract package.
+Work is tracked in the CAFE CPM prompts document (`cafe_cpm_v1_prompts_0.6.md`). PR0 bootstraps this repository; PR1 defines `discovery.wallet.observed` v0.1 in `discoverywalletobserved/v01`.
