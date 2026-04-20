@@ -51,7 +51,3 @@ go vet ./...
 ```
 
 CI runs tests on pull requests to `main`. Release automation uses [release-please](https://github.com/googleapis/release-please) (Go release type) to propose version bumps and changelogs from conventional commits.
-
-## Relationship to the rollout plan
-
-Work is tracked in the CAFE CPM prompts document (`cafe_cpm_v1_prompts_0.6.md`). PR0 bootstraps this repository; PR1 defines `discovery.wallet.observed` v0.1 in `discoverywalletobserved/v01`.
