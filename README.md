@@ -27,6 +27,11 @@ Shared **wire contracts** for the CAFE stack: versioned structs, constants, and 
 - `cafenatsv01/` — policy and remediation **NATS/JSON** contract bundle (`event_version` **v0.1**): `policy.assessment.requested` (explicit CPM command with embedded `observation/wallet/v01` snapshot + selection wire), outbound CPM events (validation, activation, assessment, remediation request), Remediation service events, versioned `NATSSubject*` constants, and `MAPPING.md` (model-to-wire reference). No brokers or runtime logic. **Naming note:** this directory is transitional and is planned to be renamed to a business-oriented path (`policyflow/v01`, `remediationflow/v01`, or equivalent validated target) in a follow-up migration.
 - `validation/` — tiny, reusable helpers (non-empty strings, field-scoped errors) for contract packages.
 
+## Contract status notes
+
+- Normative observation contract path: `observation/wallet/v01`.
+- Normative wire identifiers: `event_type = cafe.discovery.wallet.observed`, `event_version = v0.1`.
+
 Import example:
 
 ```go
