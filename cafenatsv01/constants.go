@@ -5,7 +5,7 @@ const EventVersionV01 = "v0.1"
 
 // Semantic event_type values (stable identifiers; not necessarily identical to NATS subject paths).
 const (
-	EventTypeDiscoveryWalletObserved       = "discovery.wallet.observed"
+	EventTypeDiscoveryWalletObserved       = "cafe.discovery.wallet.observed"
 	EventTypePolicyAssessmentRequested     = "policy.assessment.requested"
 	EventTypePolicyValidationCompleted     = "policy.validation.completed"
 	EventTypePolicyInstanceActivated       = "policy.instance.activated"
