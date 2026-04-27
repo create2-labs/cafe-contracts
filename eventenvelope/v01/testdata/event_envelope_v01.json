@@ -1,0 +1,9 @@
+{
+  "event_id": "evt_common_0001",
+  "event_type": "cafe.discovery.wallet.observed",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-27T10:00:00Z",
+  "correlation_id": "corr_0001",
+  "causation_id": "cause_0001",
+  "producer": "cafe-discovery"
+}
