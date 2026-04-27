@@ -1,0 +1,53 @@
+{
+  "event_id": "evt_cpm_req_0001",
+  "event_type": "policy.assessment.requested",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-26T12:00:00Z",
+  "correlation_id": "corr_user_assess_0001",
+  "causation_id": "api_action_9f2a",
+  "producer": "cafe-crypto-backend",
+  "subject": {
+    "type": "wallet",
+    "id": "wallet:0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+  },
+  "payload": {
+    "client_request_id": "req-frontend-1002",
+    "observation": {
+      "event_id": "evt_disc_nested_2001",
+      "event_type": "discovery.wallet.observed",
+      "event_version": "v0.1",
+      "occurred_at": "2026-04-26T11:59:00Z",
+      "correlation_id": "corr_scan_inline",
+      "causation_id": "scan_job_inline",
+      "producer": "cafe-discovery",
+      "subject": {
+        "type": "wallet",
+        "id": "wallet:0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+      },
+      "payload": {
+        "chain_ids": [1, 8453],
+        "account_kind": "eoa",
+        "current_algorithm": "secp256k1_ecrecover",
+        "current_pq_posture": "classical_only",
+        "public_key_exposed": false,
+        "is_multichain": true,
+        "observed_at": "2026-04-26T11:58:30Z"
+      }
+    },
+    "selection_request": {
+      "target_posture": "hybrid",
+      "target_chain_ids": [1, 8453],
+      "require_multichain": true,
+      "allow_new_wallet": false,
+      "address_continuity_required": true,
+      "key_rotation_required": false,
+      "recovery_required": false,
+      "minimum_maturity": 2,
+      "allow_research": false,
+      "allowed_provider_modes": ["user_managed", "third_party"],
+      "require_bundler_available": false,
+      "require_paymaster_available": false,
+      "approval_mode": "manual"
+    }
+  }
+}

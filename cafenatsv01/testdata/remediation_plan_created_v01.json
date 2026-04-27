@@ -1,0 +1,19 @@
+{
+  "event_id": "evt_rem_plan_0001",
+  "event_type": "remediation.plan.created",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-26T12:35:00Z",
+  "correlation_id": "corr_plan1",
+  "causation_id": "cause_plan1",
+  "producer": "cafe-remediation",
+  "subject": {
+    "type": "remediation",
+    "id": "rem_4041"
+  },
+  "payload": {
+    "plan_id": "plan_88aa",
+    "remediation_id": "rem_4041",
+    "instance_id": "cpi_abc123",
+    "revision": "1"
+  }
+}

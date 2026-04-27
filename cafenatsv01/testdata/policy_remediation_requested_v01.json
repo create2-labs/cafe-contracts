@@ -1,0 +1,20 @@
+{
+  "event_id": "evt_cpm_remed_req_0001",
+  "event_type": "policy.remediation.requested",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-26T12:30:00Z",
+  "correlation_id": "corr_rem1",
+  "causation_id": "cause_rem1",
+  "producer": "cafe-cpm",
+  "subject": {
+    "type": "policy_instance",
+    "id": "cpi_abc123"
+  },
+  "payload": {
+    "instance_id": "cpi_abc123",
+    "remediation_id": "rem_4041",
+    "reason_code": "assessment_finding_pq_gap",
+    "requested_by": "cafe-cpm@policy-engine",
+    "correlation_ref": "asm_9f2b"
+  }
+}
