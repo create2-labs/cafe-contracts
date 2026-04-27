@@ -22,13 +22,19 @@ Shared **wire contracts** for the CAFE stack: versioned structs, constants, and 
 
 ## Layout
 
-- `discoverywalletobserved/v01/` — `discovery.wallet.observed` wire contract (`event_version` **v0.1**): `Event`, `Subject`, `Payload`, exported vocabulary (account kind, algorithm ID, PQ posture, subject type), `Validate()`, and canonical JSON under `testdata/`.
+- `eventenvelope/v01/` — shared event header contract (`event_id`, `event_type`, `event_version`, `occurred_at`, `correlation_id`, `causation_id`, `producer`) with minimal validation and canonical JSON fixture(s).
+- `observation/wallet/v01/` — normative `cafe.discovery.wallet.observed` wire contract (`event_version` **v0.1**): `Event`, `Subject`, `Payload`, exported vocabulary (account kind, algorithm ID, PQ posture, subject type), `Validate()`, and canonical JSON under `testdata/`.
+- `discoverywalletobserved/v01/` — legacy path kept temporarily for coexistence during CWR0 migration (`event_type` historical synonym: `discovery.wallet.observed`).
+- `cafenatsv01/` — policy and remediation **NATS/JSON** contract bundle (`event_version` **v0.1**): `policy.assessment.requested` (explicit CPM command with embedded observation snapshot + selection wire), outbound CPM events (validation, activation, assessment, remediation request), Remediation service events, versioned `NATSSubject*` constants, and `MAPPING.md` (model-to-wire reference). No brokers or runtime logic.
 - `validation/` — tiny, reusable helpers (non-empty strings, field-scoped errors) for contract packages.
 
 Import example:
 
 ```go
+import eventenvelopev01 "github.com/create2-labs/cafe-contracts/eventenvelope/v01"
+import walletobsv01 "github.com/create2-labs/cafe-contracts/observation/wallet/v01"
 import "github.com/create2-labs/cafe-contracts/discoverywalletobserved/v01"
+import "github.com/create2-labs/cafe-contracts/cafenatsv01"
 ```
 
 Version directories use a short semver-like segment (`v01` = 0.1) to keep import paths stable and readable.
