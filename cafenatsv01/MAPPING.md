@@ -4,8 +4,8 @@ Reference matrix for `cafenatsv01` event contracts. “Internal model” means t
 
 | event_type (v0.1) | NATS subject constant | Primary internal model (consumer / producer) | Wire package |
 | --- | --- | --- | --- |
-| `discovery.wallet.observed` | `NATSSubjectDiscoveryWalletObservedV01` | Discovery observation → any subscriber | `discoverywalletobserved/v01` (canonical `Event`) |
-| `policy.assessment.requested` | `NATSSubjectPolicyAssessmentRequestedV01` | User/API trigger → CPM: embeds a full `discoverywalletobserved/v01` snapshot + selection | `PolicyAssessmentRequested` |
+| `discovery.wallet.observed` | `NATSSubjectDiscoveryWalletObservedV01` | Historical synonym kept for transitional subject compatibility | Legacy wire constant |
+| `policy.assessment.requested` | `NATSSubjectPolicyAssessmentRequestedV01` | User/API trigger → CPM: embeds a full `observation/wallet/v01` snapshot + selection | `PolicyAssessmentRequested` |
 | `policy.validation.completed` | `NATSSubjectPolicyValidationCompletedV01` | CPM `CryptoPolicyInstance` validation result | `PolicyValidationCompleted` |
 | `policy.instance.activated` | `NATSSubjectPolicyInstanceActivatedV01` | CPM instance lifecycle | `PolicyInstanceActivated` |
 | `policy.assessment.completed` | `NATSSubjectPolicyAssessmentCompletedV01` | CPM `CryptoPolicyAssessmentResult` (summary) | `PolicyAssessmentCompleted` |
@@ -19,4 +19,4 @@ Reference matrix for `cafenatsv01` event contracts. “Internal model” means t
 
 **Selection → CPM:** `PolicySelectionRequestWire` JSON matches `cafe-cpm` `PolicySelectionRequest` (same field names and types; posture as string). Map with `json.Unmarshal` then call domain `Normalize`/`Validate` in CPM.
 
-**Observation snapshot:** `PolicyAssessmentRequested.Payload.Observation` is a full `discoverywalletobserved/v01` `Event` and must pass `Validate()`.
+**Observation snapshot:** `PolicyAssessmentRequested.Payload.Observation` is a full `observation/wallet/v01` `Event` and must pass `Validate()` (`event_type` = `cafe.discovery.wallet.observed`, `event_version` = `v0.1`).

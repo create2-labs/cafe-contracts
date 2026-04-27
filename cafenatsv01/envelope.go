@@ -1,18 +1,10 @@
 package cafenatsv01
 
-import "time"
+import eventenvelopev01 "github.com/create2-labs/cafe-contracts/eventenvelope/v01"
 
 // EnvelopeV01 is the common header for policy/remediation v0.1 family events. Embed or copy
 // these fields into each concrete event struct for stable JSON field order across services.
-type EnvelopeV01 struct {
-	EventID       string    `json:"event_id"`
-	EventType     string    `json:"event_type"`
-	EventVersion  string    `json:"event_version"`
-	OccurredAt    time.Time `json:"occurred_at"`
-	CorrelationID string    `json:"correlation_id"`
-	CausationID   string    `json:"causation_id"`
-	Producer      string    `json:"producer"`
-}
+type EnvelopeV01 = eventenvelopev01.Envelope
 
 // SubjectRef is the stable subject address on the wire (mirrors discovery.wallet.observed).
 type SubjectRef struct {
