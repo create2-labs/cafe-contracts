@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	walletobsv01 "github.com/create2-labs/cafe-contracts/observation/wallet/v01"
 )
 
 func TestNATSKeyConstants_Unique(t *testing.T) {
@@ -215,5 +217,14 @@ func TestPolicySelectionRequestWire_MultichainRule(t *testing.T) {
 	err := sel.Validate()
 	if !errors.Is(err, ErrSelectionRequest) {
 		t.Fatalf("expected ErrSelectionRequest, got %v", err)
+	}
+}
+
+func TestDiscoveryWalletObservedEventType_IsNormative(t *testing.T) {
+	if EventTypeDiscoveryWalletObserved != walletobsv01.EventTypeWalletObserved {
+		t.Fatalf("event_type mismatch: got %q, want %q", EventTypeDiscoveryWalletObserved, walletobsv01.EventTypeWalletObserved)
+	}
+	if EventTypeDiscoveryWalletObserved != "cafe.discovery.wallet.observed" {
+		t.Fatalf("unexpected event_type: %q", EventTypeDiscoveryWalletObserved)
 	}
 }
