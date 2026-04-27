@@ -1,11 +1,11 @@
 package cafenatsv01
 
 import (
-	dwv01 "github.com/create2-labs/cafe-contracts/discoverywalletobserved/v01"
+	walletobsv01 "github.com/create2-labs/cafe-contracts/observation/wallet/v01"
 )
 
 // PolicyAssessmentRequested is the explicit asynchronous command that starts CPM assessment.
-// It carries a self-sufficient observation snapshot (full discovery.wallet.observed event)
+// It carries a self-sufficient observation snapshot (full cafe.discovery.wallet.observed event)
 // so CPM does not need to read Discovery persistence. event_id is the primary idempotence key.
 type PolicyAssessmentRequested struct {
 	EnvelopeV01
@@ -15,8 +15,8 @@ type PolicyAssessmentRequested struct {
 
 // PolicyAssessmentRequestedPayload is the command body.
 type PolicyAssessmentRequestedPayload struct {
-	// Observation is a full discovery.wallet.observed v0.1 event (contract in discoverywalletobserved/v01).
-	Observation dwv01.Event `json:"observation"`
+	// Observation is a full cafe.discovery.wallet.observed v0.1 event.
+	Observation walletobsv01.Event `json:"observation"`
 	// SelectionRequest drives policy selection; same JSON as CPM PolicySelectionRequest.
 	SelectionRequest PolicySelectionRequestWire `json:"selection_request"`
 	// ClientRequestID is optional; correlates to a user or API request id (not the idempotence key).
