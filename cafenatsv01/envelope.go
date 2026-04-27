@@ -6,7 +6,7 @@ import eventenvelopev01 "github.com/create2-labs/cafe-contracts/eventenvelope/v0
 // these fields into each concrete event struct for stable JSON field order across services.
 type EnvelopeV01 = eventenvelopev01.Envelope
 
-// SubjectRef is the stable subject address on the wire (mirrors discovery.wallet.observed).
+// SubjectRef is the stable subject address on the wire for event payloads.
 type SubjectRef struct {
 	Type string `json:"type"`
 	ID   string `json:"id"`

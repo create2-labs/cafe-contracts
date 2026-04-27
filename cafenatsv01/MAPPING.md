@@ -4,7 +4,7 @@ Reference matrix for `cafenatsv01` event contracts. “Internal model” means t
 
 | event_type (v0.1) | NATS subject constant | Primary internal model (consumer / producer) | Wire package |
 | --- | --- | --- | --- |
-| `discovery.wallet.observed` | `NATSSubjectDiscoveryWalletObservedV01` | Historical synonym kept for transitional subject compatibility | Legacy wire constant |
+| `cafe.discovery.wallet.observed` | `NATSSubjectDiscoveryWalletObservedV01` | Discovery observation event (informationnel) | `observation/wallet/v01` |
 | `policy.assessment.requested` | `NATSSubjectPolicyAssessmentRequestedV01` | User/API trigger → CPM: embeds a full `observation/wallet/v01` snapshot + selection | `PolicyAssessmentRequested` |
 | `policy.validation.completed` | `NATSSubjectPolicyValidationCompletedV01` | CPM `CryptoPolicyInstance` validation result | `PolicyValidationCompleted` |
 | `policy.instance.activated` | `NATSSubjectPolicyInstanceActivatedV01` | CPM instance lifecycle | `PolicyInstanceActivated` |
