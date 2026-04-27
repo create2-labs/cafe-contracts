@@ -1,0 +1,20 @@
+{
+  "event_id": "evt_rem_ex_done_0001",
+  "event_type": "remediation.execution.completed",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-26T12:50:00Z",
+  "correlation_id": "corr_exdone1",
+  "causation_id": "cause_exdone1",
+  "producer": "cafe-remediation",
+  "subject": {
+    "type": "remediation",
+    "id": "rem_4041"
+  },
+  "payload": {
+    "execution_id": "ex_1029",
+    "plan_id": "plan_88aa",
+    "instance_id": "cpi_abc123",
+    "status": "succeeded",
+    "completed_ops": 3
+  }
+}

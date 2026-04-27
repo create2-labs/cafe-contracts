@@ -1,0 +1,20 @@
+{
+  "event_id": "evt_cpm_val_0001",
+  "event_type": "policy.validation.completed",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-26T12:05:00Z",
+  "correlation_id": "corr_val_1",
+  "causation_id": "act_val_1",
+  "producer": "cafe-cpm",
+  "subject": {
+    "type": "policy_instance",
+    "id": "cpi_abc123"
+  },
+  "payload": {
+    "instance_id": "cpi_abc123",
+    "template_id": "cpt_wallet_hybrid_v1",
+    "valid": true,
+    "issue_count": 0,
+    "validation_run_id": "vr_001"
+  }
+}

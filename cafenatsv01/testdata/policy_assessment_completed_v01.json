@@ -1,0 +1,19 @@
+{
+  "event_id": "evt_cpm_ares_0001",
+  "event_type": "policy.assessment.completed",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-26T12:20:00Z",
+  "correlation_id": "corr_as1",
+  "causation_id": "cause_as1",
+  "producer": "cafe-cpm",
+  "subject": {
+    "type": "policy_instance",
+    "id": "cpi_abc123"
+  },
+  "payload": {
+    "instance_id": "cpi_abc123",
+    "assessment_id": "asm_9f2b",
+    "status": "succeeded",
+    "finding_count": 0
+  }
+}

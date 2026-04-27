@@ -1,0 +1,19 @@
+{
+  "event_id": "evt_rem_ex_start_0001",
+  "event_type": "remediation.execution.started",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-26T12:40:00Z",
+  "correlation_id": "corr_ex1",
+  "causation_id": "cause_ex1",
+  "producer": "cafe-remediation",
+  "subject": {
+    "type": "remediation",
+    "id": "rem_4041"
+  },
+  "payload": {
+    "execution_id": "ex_1029",
+    "plan_id": "plan_88aa",
+    "instance_id": "cpi_abc123",
+    "remediation_id": "rem_4041"
+  }
+}

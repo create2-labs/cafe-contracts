@@ -1,0 +1,19 @@
+{
+  "event_id": "evt_cpm_act_0001",
+  "event_type": "policy.instance.activated",
+  "event_version": "v0.1",
+  "occurred_at": "2026-04-26T12:10:00Z",
+  "correlation_id": "corr_act_1",
+  "causation_id": "act_1",
+  "producer": "cafe-cpm",
+  "subject": {
+    "type": "policy_instance",
+    "id": "cpi_abc123"
+  },
+  "payload": {
+    "instance_id": "cpi_abc123",
+    "template_id": "cpt_wallet_hybrid_v1",
+    "graph_version": "1.0.0",
+    "activation_id": "actv_7d3f"
+  }
+}
