@@ -25,6 +25,7 @@ Shared **wire contracts** for the CAFE stack: versioned structs, constants, and 
 - `eventenvelope/v01/` — shared event header contract (`event_id`, `event_type`, `event_version`, `occurred_at`, `correlation_id`, `causation_id`, `producer`) with minimal validation and canonical JSON fixture(s).
 - `observation/wallet/v01/` — normative `cafe.discovery.wallet.observed` wire contract (`event_version` **v0.1**): `Event`, `Subject`, `Payload`, exported vocabulary (account kind, algorithm ID, PQ posture, subject type), `Validate()`, and canonical JSON under `testdata/`.
 - `cafenatsv01/` — policy and remediation **NATS/JSON** contract bundle (`event_version` **v0.1**): `policy.assessment.requested` (explicit CPM command with embedded `observation/wallet/v01` snapshot + selection wire), outbound CPM events (validation, activation, assessment, remediation request), Remediation service events, versioned `NATSSubject*` constants, and `MAPPING.md` (model-to-wire reference). No brokers or runtime logic. **Naming note:** this directory is transitional and is planned to be renamed to a business-oriented path (`policyflow/v01`, `remediationflow/v01`, or equivalent validated target) in a follow-up migration.
+- `address/` — shared EVM address helpers for boundary handling: `IsValidHexAddress`, `NormalizeAddress` (lowercase canonical), `EqualAddress` (case-insensitive via canonical form), and `ToChecksumEIP55` for user-facing rendering.
 - `validation/` — tiny, reusable helpers (non-empty strings, field-scoped errors) for contract packages.
 
 ## Contract status notes
@@ -41,6 +42,32 @@ import "github.com/create2-labs/cafe-contracts/cafenatsv01"
 ```
 
 Version directories use a short semver-like segment (`v01` = 0.1) to keep import paths stable and readable.
+
+## Address handling policy
+
+For cross-service consistency:
+
+- Accept EVM addresses in any valid casing at boundaries.
+- Normalize to lowercase for machine keys (storage/idempotency/cache/comparison).
+- Use EIP-55 checksum only for display-oriented contexts.
+
+Example:
+
+```go
+import "github.com/create2-labs/cafe-contracts/address"
+
+normalized, err := address.NormalizeAddress("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")
+if err != nil {
+	// handle invalid input
+}
+
+same := address.EqualAddress(
+	"0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+	"0x742d35cc6634c0532925a3b844bc454e4438f44e",
+)
+_ = normalized
+_ = same
+```
 
 ## Consumers
 
