@@ -17,6 +17,6 @@ Reference matrix for `cafenatsv01` event contracts. “Internal model” means t
 
 **Idempotence:** For inbound commands, `event_id` is the primary duplicate-suppression key. Optional `client_request_id` in `PolicyAssessmentRequested` is for tracing only.
 
-**Selection → CPM:** `PolicySelectionRequestWire` JSON matches `cafe-cpm` `PolicySelectionRequest` (same field names and types; posture as string). Map with `json.Unmarshal` then call domain `Normalize`/`Validate` in CPM.
+**Selection → CPM:** `PolicySelectionRequestWire` JSON matches `cafe-cpm` `PolicySelectionRequest` (same field names and types; posture as string; `key_rotation_model` is `none` | `per_userop`). Map with `json.Unmarshal` then call domain `Normalize`/`Validate` in CPM.
 
 **Observation snapshot:** `PolicyAssessmentRequested.Payload.Observation` is a full `observation/wallet/v01` `Event` and must pass `Validate()` (`event_type` = `cafe.discovery.wallet.observed`, `event_version` = `v0.1`).
