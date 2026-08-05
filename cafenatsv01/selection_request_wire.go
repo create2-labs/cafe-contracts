@@ -14,6 +14,12 @@ const (
 	TargetPostureUnknown       = "unknown"
 )
 
+// Key rotation model strings align with CPM PolicySelectionRequest.key_rotation_model.
+const (
+	KeyRotationModelNone      = "none"
+	KeyRotationModelPerUserOp = "per_userop"
+)
+
 // PolicySelectionRequestWire mirrors the JSON shape of the CPM PolicySelectionRequest
 // for use on the wire without importing CPM. Callers may map it into the domain type.
 type PolicySelectionRequestWire struct {
@@ -22,7 +28,7 @@ type PolicySelectionRequestWire struct {
 	RequireMultichain         bool     `json:"require_multichain"`
 	AllowNewWallet            bool     `json:"allow_new_wallet"`
 	AddressContinuityRequired bool     `json:"address_continuity_required"`
-	KeyRotationRequired       bool     `json:"key_rotation_required"`
+	KeyRotationModel          string   `json:"key_rotation_model"`
 	RecoveryRequired          bool     `json:"recovery_required"`
 	MinimumMaturity           int      `json:"minimum_maturity"`
 	AllowResearch             bool     `json:"allow_research"`
@@ -44,6 +50,9 @@ func (p *PolicySelectionRequestWire) Normalize() {
 	}
 	if p.ApprovalMode == "" {
 		p.ApprovalMode = "manual"
+	}
+	if p.KeyRotationModel == "" {
+		p.KeyRotationModel = KeyRotationModelNone
 	}
 	p.TargetChainIDs = normalizeChainIDs(p.TargetChainIDs)
 	p.AllowedProviderModes = normalizeStringSliceUniqueSorted(p.AllowedProviderModes)
@@ -76,12 +85,24 @@ func (p *PolicySelectionRequestWire) Validate() error {
 	if p.ApprovalMode != "auto" && p.ApprovalMode != "manual" {
 		return fmt.Errorf("%w: approval_mode must be auto or manual", ErrSelectionRequest)
 	}
+	if !isValidKeyRotationModel(p.KeyRotationModel) {
+		return fmt.Errorf("%w: key_rotation_model must be none or per_userop", ErrSelectionRequest)
+	}
 	for _, m := range p.AllowedProviderModes {
 		if m != "third_party" && m != "user_managed" {
 			return fmt.Errorf("%w: allowed_provider_modes invalid value %q", ErrSelectionRequest, m)
 		}
 	}
 	return nil
+}
+
+func isValidKeyRotationModel(s string) bool {
+	switch s {
+	case KeyRotationModelNone, KeyRotationModelPerUserOp:
+		return true
+	default:
+		return false
+	}
 }
 
 func isValidTargetPosture(s string) bool {
