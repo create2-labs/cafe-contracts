@@ -12,6 +12,7 @@
   },
   "payload": {
     "client_request_id": "req-frontend-1002",
+    "crypto_policy_id": "cpm_pq_account_validation_v1",
     "observation": {
       "event_id": "evt_disc_nested_2001",
       "event_type": "cafe.discovery.wallet.observed",
@@ -33,21 +34,6 @@
         "is_multichain": true,
         "observed_at": "2026-04-26T11:58:30Z"
       }
-    },
-    "selection_request": {
-      "target_posture": "hybrid",
-      "target_chain_ids": [1, 8453],
-      "require_multichain": true,
-      "allow_new_wallet": false,
-      "address_continuity_required": true,
-      "key_rotation_model": "none",
-      "recovery_required": false,
-      "minimum_maturity": 2,
-      "allow_research": false,
-      "allowed_provider_modes": ["user_managed", "third_party"],
-      "require_bundler_available": false,
-      "require_paymaster_available": false,
-      "approval_mode": "manual"
     }
   }
 }

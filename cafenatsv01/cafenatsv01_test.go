@@ -58,10 +58,66 @@ func TestPolicyAssessmentRequested_FixtureRoundTrip(t *testing.T) {
 	if ev.Payload.Observation.EventID == "" {
 		t.Fatal("nested observation missing")
 	}
-	if ev.Payload.SelectionRequest.TargetPosture != TargetPostureHybrid {
-		t.Fatalf("posture: %s", ev.Payload.SelectionRequest.TargetPosture)
+	if ev.Payload.CryptoPolicyID != "cpm_pq_account_validation_v1" {
+		t.Fatalf("crypto_policy_id: %s", ev.Payload.CryptoPolicyID)
 	}
 	roundTripJSON(t, &ev)
+}
+
+func TestPolicyAssessmentRequested_RejectsSelectionRequest(t *testing.T) {
+	data := readFixture(t, "policy_assessment_requested_v01.json")
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	payload := raw["payload"].(map[string]any)
+	payload["selection_request"] = map[string]any{
+		"target_posture":   "hybrid",
+		"minimum_maturity": 1,
+		"approval_mode":    "manual",
+	}
+	raw["payload"] = payload
+	bad, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ev PolicyAssessmentRequested
+	err = json.Unmarshal(bad, &ev)
+	if !errors.Is(err, ErrLegacyAssessmentField) {
+		t.Fatalf("got %v, want ErrLegacyAssessmentField", err)
+	}
+}
+
+func TestPolicyAssessmentRequested_RejectsLayerBField(t *testing.T) {
+	data := readFixture(t, "policy_assessment_requested_v01.json")
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	payload := raw["payload"].(map[string]any)
+	payload["allow_new_wallet"] = true
+	raw["payload"] = payload
+	bad, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ev PolicyAssessmentRequested
+	err = json.Unmarshal(bad, &ev)
+	if !errors.Is(err, ErrLegacyAssessmentField) {
+		t.Fatalf("got %v, want ErrLegacyAssessmentField", err)
+	}
+}
+
+func TestPolicyAssessmentRequested_RequiresCryptoPolicyID(t *testing.T) {
+	data := readFixture(t, "policy_assessment_requested_v01.json")
+	var ev PolicyAssessmentRequested
+	if err := json.Unmarshal(data, &ev); err != nil {
+		t.Fatal(err)
+	}
+	ev.Payload.CryptoPolicyID = "  "
+	if err := ev.Validate(); !errors.Is(err, ErrCryptoPolicyIDRequired) {
+		t.Fatalf("got %v, want ErrCryptoPolicyIDRequired", err)
+	}
 }
 
 func TestPolicyValidationCompleted_Fixture(t *testing.T) {
@@ -202,21 +258,6 @@ func TestPolicyAssessmentRequested_WrongProducer(t *testing.T) {
 	err := ev.Validate()
 	if !errors.Is(err, ErrProducer) {
 		t.Fatalf("got %v", err)
-	}
-}
-
-func TestPolicySelectionRequestWire_MultichainRule(t *testing.T) {
-	sel := &PolicySelectionRequestWire{
-		TargetPosture:     TargetPostureUnknown,
-		RequireMultichain: true,
-		TargetChainIDs:    []int64{1},
-		MinimumMaturity:   1,
-		ApprovalMode:      "manual",
-	}
-	sel.Normalize()
-	err := sel.Validate()
-	if !errors.Is(err, ErrSelectionRequest) {
-		t.Fatalf("expected ErrSelectionRequest, got %v", err)
 	}
 }
 
