@@ -54,17 +54,13 @@ func ToChecksumEIP55(in string) (string, error) {
 	}
 
 	hashHex := keccak256Hex(lower)
-	out := make([]byte, addressLength)
-	for i := 0; i < addressLength; i++ {
-		c := lower[i]
+	out := []byte(lower)
+	for i, c := range out {
 		if c >= '0' && c <= '9' {
-			out[i] = c
 			continue
 		}
 		if hexNibble(hashHex[i]) >= 8 {
-			out[i] = c - 32
-		} else {
-			out[i] = c
+			out[i] = c - 32 // ASCII a-f → A-F
 		}
 	}
 	return addressPrefix + string(out), nil

@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,8 +20,21 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Lint / Test / Vuln — host CI (library; no Docker stage)
+      # v9 = Node 24; goinstall builds golangci-lint with go.mod's Go (binary v2.8.0 is Go 1.25)
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.8.0
+          install-mode: goinstall
+
       - name: Go test
         run: |
           set -euo pipefail
           go test ./...
-          go vet ./...
+
+      - name: govulncheck
+        run: |
+          set -euo pipefail
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
