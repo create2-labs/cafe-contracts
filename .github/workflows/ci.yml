@@ -21,10 +21,12 @@ jobs:
           go-version-file: go.mod
 
       # Lint / Test / Vuln — host CI (library; no Docker stage)
+      # v9 = Node 24; goinstall builds golangci-lint with go.mod's Go (binary v2.8.0 is Go 1.25)
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.8.0
+          install-mode: goinstall
 
       - name: Go test
         run: |
