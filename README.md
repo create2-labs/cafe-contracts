@@ -24,7 +24,9 @@ Shared **wire contracts** for the CAFE stack: versioned structs, constants, and 
 
 - `eventenvelope/v01/` — shared event header contract (`event_id`, `event_type`, `event_version`, `occurred_at`, `correlation_id`, `causation_id`, `producer`) with minimal validation and canonical JSON fixture(s).
 - `observation/wallet/v01/` — normative `cafe.discovery.wallet.observed` wire contract (`event_version` **v0.1**): `Event`, `Subject`, `Payload`, exported vocabulary (account kind, algorithm ID, PQ posture, subject type), `Validate()`, and canonical JSON under `testdata/`.
-- `cafenatsv01/` — policy and remediation **NATS/JSON** contract bundle (`event_version` **v0.1** envelope): `policy.assessment.requested` (explicit CPM command; assessment **payload v0.2** = embedded `observation/wallet/v01` snapshot + `crypto_policy_id`; rejects `selection_request` / couche-B fields), outbound CPM events (validation, activation, assessment, remediation request), Remediation service events, versioned `NATSSubject*` constants, and `MAPPING.md` (model-to-wire reference). No brokers or runtime logic. **Naming note:** this directory is transitional and is planned to be renamed to a business-oriented path (`policyflow/v01`, `remediationflow/v01`, or equivalent validated target) in a follow-up migration.
+- `cafenatsv01/` — policy and remediation **NATS/JSON** contract bundle (`event_version` **v0.1** envelope): `policy.assessment.requested` (explicit CPM command; assessment **payload v0.2** = embedded `observation/wallet/v01` snapshot + `crypto_policy_id`; rejects `selection_request` / couche-B fields), outbound CPM events (validation, activation, assessment, remediation request), Remediation service events, versioned `NATSSubject*` constants, and `MAPPING.md` (model-to-wire reference). No brokers or runtime logic. **Naming note:** this directory is transitional and is planned to be renamed to a business-oriented path (`policyflow/v01`, `remediationflow/v01`, or equivalent validated target) in a follow-up migration. The indexer page and scanner presence contracts do not live here.
+- `indexergateway/transactionspage/v1/` — NATS page contract on `cafe.indexer.gateway.transactions.page.v1` (Go package `v1`): request, discriminated page-or-error response, six error codes, and boundary validation. JSON fixtures under `testdata/` are embedded as `Vectors`. No provider client and no NATS connection.
+- `discovery/scannerpresence/v1/` — scanner presence on the existing subject `cafe.discovery.scanners.presence` (Go package `v1`): `event` (`joined` or `left`), `scanner_id`, `type`, and optional `onchain_indexer`. An unknown `type` stays valid. A missing, unknown, or invalid indexer reads as `unknown`, never `none`. `etherscan`, `moralis`, and `none` stay those values when present. JSON fixtures under `testdata/` are embedded as `Vectors`.
 - `address/` — shared EVM address helpers for boundary handling: `IsValidHexAddress`, `NormalizeAddress` (lowercase canonical), `EqualAddress` (case-insensitive via canonical form), and `ToChecksumEIP55` for user-facing rendering.
 - `validation/` — tiny, reusable helpers (non-empty strings, field-scoped errors) for contract packages.
 
@@ -39,9 +41,11 @@ Import example:
 import eventenvelopev01 "github.com/create2-labs/cafe-contracts/eventenvelope/v01"
 import walletobsv01 "github.com/create2-labs/cafe-contracts/observation/wallet/v01"
 import "github.com/create2-labs/cafe-contracts/cafenatsv01"
+import pagev1 "github.com/create2-labs/cafe-contracts/indexergateway/transactionspage/v1"
+import presencev1 "github.com/create2-labs/cafe-contracts/discovery/scannerpresence/v1"
 ```
 
-Version directories use a short semver-like segment (`v01` = 0.1) to keep import paths stable and readable.
+Version directories use a short semver-like segment (`v01` = 0.1) to keep import paths stable and readable. The indexer page and scanner presence contracts use `v1` because that is their wire package name.
 
 ## Address handling policy
 
