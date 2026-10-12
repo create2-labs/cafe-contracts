@@ -32,6 +32,21 @@ type Started struct {
 	Address   string `json:"address,omitempty"`
 }
 
+// Completed is one scan.completed message.
+// findings, metadata, and result are opaque JSON, omitted when absent or null.
+// endpoint and address are omitted when empty. The result is not interpreted.
+type Completed struct {
+	ScanID      string          `json:"scan_id"`
+	Kind        string          `json:"kind"`
+	UserID      string          `json:"user_id"`
+	Findings    json.RawMessage `json:"findings,omitempty"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
+	CompletedAt string          `json:"completed_at"`
+	Endpoint    string          `json:"endpoint,omitempty"`
+	Address     string          `json:"address,omitempty"`
+	Result      json.RawMessage `json:"result,omitempty"`
+}
+
 // Failed is one scan.failed message. endpoint and address are omitted when empty.
 type Failed struct {
 	ScanID      string `json:"scan_id"`
@@ -55,6 +70,12 @@ type Ready struct {
 // DecodeStarted unmarshals and validates scan.started. A malformed body yields a zero Started.
 func DecodeStarted(raw []byte) (Started, error) {
 	var msg Started
+	return finish(msg, json.Unmarshal(raw, &msg))
+}
+
+// DecodeCompleted unmarshals and validates scan.completed. A malformed body yields a zero Completed.
+func DecodeCompleted(raw []byte) (Completed, error) {
+	var msg Completed
 	return finish(msg, json.Unmarshal(raw, &msg))
 }
 
@@ -91,6 +112,33 @@ func (m *Started) UnmarshalJSON(data []byte) error {
 	applyHead(&m.ScanID, &m.Kind, &m.UserID, &m.Endpoint, &m.Address, h)
 	m.StartedAt, err = requiredString(raw, "started_at")
 	return err
+}
+
+func (m *Completed) UnmarshalJSON(data []byte) error {
+	*m = Completed{}
+	h, raw, err := bind(data, true)
+	if err != nil {
+		return err
+	}
+	applyHead(&m.ScanID, &m.Kind, &m.UserID, &m.Endpoint, &m.Address, h)
+	if m.CompletedAt, err = requiredString(raw, "completed_at"); err != nil {
+		return err
+	}
+	if m.Findings, err = optionalRaw(raw, "findings"); err != nil {
+		return err
+	}
+	if m.Metadata, err = optionalRaw(raw, "metadata"); err != nil {
+		return err
+	}
+	m.Result, err = optionalRaw(raw, "result")
+	return err
+}
+
+func (m Completed) Validate() error {
+	if err := validateScan(m.ScanID, m.Kind, m.UserID); err != nil {
+		return err
+	}
+	return text("completed_at", m.CompletedAt)
 }
 
 func (m Started) Validate() error {

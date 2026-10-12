@@ -1,0 +1,1 @@
+{"scan_id":"6f1c0c1e-9b2a-4d3e-8f7a-1c2b3d4e5f60","kind":"wallet","user_id":"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee","findings":[{"name":"secp256k1","type":"key"}],"metadata":{"source":"scanner","kept":true},"completed_at":"2026-10-08T08:00:30Z","address":"0xabc","result":{"z":1,"a":2}}
