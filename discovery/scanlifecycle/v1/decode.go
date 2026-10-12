@@ -16,6 +16,25 @@ func objectFields(data []byte) (map[string]json.RawMessage, error) {
 	return raw, nil
 }
 
+// optionalRaw keeps a JSON value as it arrived. Null and a missing field are omitted,
+// the same way an empty interface{} with omitempty is serialized today.
+func optionalRaw(raw map[string]json.RawMessage, key string) (json.RawMessage, error) {
+	value, ok := raw[key]
+	if !ok {
+		return nil, nil
+	}
+	trimmed := bytes.TrimSpace(value)
+	if bytes.Equal(trimmed, []byte("null")) {
+		return nil, nil
+	}
+	if !json.Valid(trimmed) {
+		return nil, fmt.Errorf("%w: %s", ErrMalformed, key)
+	}
+	out := make(json.RawMessage, len(trimmed))
+	copy(out, trimmed)
+	return out, nil
+}
+
 func optionalString(raw map[string]json.RawMessage, key string) (string, error) {
 	value, ok := raw[key]
 	if !ok {
