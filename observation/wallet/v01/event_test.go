@@ -114,3 +114,21 @@ func validMinimalEvent() Event {
 		},
 	}
 }
+
+// TASK-CON-002: Event.Validate accepts eoa and unknown, and rejects the removed kinds.
+func TestValidate_AccountKind(t *testing.T) {
+	for _, kind := range []string{"eoa", "unknown"} {
+		ev := validMinimalEvent()
+		ev.Payload.AccountKind = kind
+		if err := ev.Validate(); err != nil {
+			t.Fatalf("%s: %v", kind, err)
+		}
+	}
+	for _, kind := range removedAccountKinds {
+		ev := validMinimalEvent()
+		ev.Payload.AccountKind = kind
+		if err := ev.Validate(); !errors.Is(err, ErrAccountKind) {
+			t.Fatalf("%s: %v", kind, err)
+		}
+	}
+}

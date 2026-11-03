@@ -21,20 +21,22 @@ func TestIsValidAlgorithmID(t *testing.T) {
 	}
 }
 
+// TASK-CON-002: the account kinds are eoa and unknown only.
 func TestAccountKind_IsValid(t *testing.T) {
-	valid := []AccountKind{
-		AccountKindEOA,
-		AccountKindERC4337SmartAccount,
-		AccountKindDelegatedEOA7702,
-		AccountKindContractAccount,
-		AccountKindUnknown,
-	}
-	for _, k := range valid {
+	for _, k := range []AccountKind{AccountKindEOA, AccountKindUnknown} {
 		if !k.IsValid() {
 			t.Fatalf("%q should be valid", k)
 		}
 	}
-	if AccountKind("other").IsValid() {
+	for _, k := range removedAccountKinds {
+		if AccountKind(k).IsValid() {
+			t.Fatalf("%q should be invalid", k)
+		}
+	}
+	if AccountKind("other").IsValid() || AccountKind("").IsValid() {
 		t.Fatal("expected invalid")
 	}
 }
+
+// Removed kinds are string literals: their constants are deleted by TASK-CON-002.
+var removedAccountKinds = []string{"erc4337_smart_account", "delegated_eoa_7702", "contract_account"}
