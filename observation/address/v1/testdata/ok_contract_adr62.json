@@ -1,0 +1,13 @@
+{
+  "address":"0x1111111111111111111111111111111111111111",
+  "account_type": "contract",
+  "observed_at": "2026-10-23T10:00:00Z",
+  "chains": [
+    { "chain_id": 1, "qualification": "contract" },
+    { "chain_id": 10, "qualification": "not_deployed", "nonce": 0 }
+  ],
+  "unobserved_chain_ids": [137],
+  "related_addresses": [],
+  "anomalies": [],
+  "eoa": null
+}
