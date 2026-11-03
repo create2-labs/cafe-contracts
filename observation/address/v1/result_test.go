@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -24,6 +25,34 @@ func eoaChain(id int64, nonce *uint64, exposed *bool) Chain {
 
 func res(t AccountType, chains []Chain, unobserved ...int64) Result {
 	return Result{Address: addr, AccountType: t, ObservedAt: at, Chains: chains, UnobservedChainIDs: unobserved}
+}
+
+const dtarget = "0x2222222222222222222222222222222222222222"
+
+func goodEOA(exposed bool) *EOA {
+	return &EOA{KeyExposed: exposed, Algorithm: "ECDSA-secp256k1", NISTLevel: 1, RiskScore: 0.5}
+}
+
+func mod(r Result, f func(*Result)) Result { f(&r); return r }
+
+func deleg(chain int64, a string) Related {
+	return Related{Role: RelatedRoleDelegationTarget, ChainID: chain, Address: a}
+}
+
+// eoaBase is a valid eoa result: chain 1 exposed, chain 10 not, 137 unobserved.
+func eoaBase() Result {
+	r := res(AccountTypeEOA, []Chain{eoaChain(1, u(3), b(true)), eoaChain(10, u(0), b(false))}, 137)
+	r.EOA = goodEOA(true)
+	return r
+}
+
+// contractBase has a contract chain and a not_deployed chain with nonce n.
+func contractBase(n uint64) Result {
+	return res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract}, {ChainID: 10, Qualification: QualificationNotDeployed, Nonce: u(n)}}, 137)
+}
+
+func blankBase() Result {
+	return res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank, Nonce: u(0)}})
 }
 
 func mustMalformed(t *testing.T, name string, err error) {
@@ -55,15 +84,45 @@ func TestEnumIsValid(t *testing.T) {
 			t.Errorf("qualification %q should be invalid", v)
 		}
 	}
+	// OC-P08 note, roles and anomalies.
+	for _, v := range []RelatedRole{RelatedRoleDelegationTarget, RelatedRoleDeployer} {
+		if !v.IsValid() {
+			t.Errorf("role %q should be valid", v)
+		}
+	}
+	for _, v := range []RelatedRole{"", "Deployer", "owner", "delegate"} {
+		if v.IsValid() {
+			t.Errorf("role %q should be invalid", v)
+		}
+	}
+	if !AnomalyContractWithEOAActivity.IsValid() {
+		t.Error("anomaly contract_with_eoa_activity should be valid")
+	}
+	for _, v := range []Anomaly{"", "Contract_With_EOA_Activity", "unknown"} {
+		if v.IsValid() {
+			t.Errorf("anomaly %q should be invalid", v)
+		}
+	}
 }
 
 // CA1.1-CA1.3, CA2.2: one valid result per account type.
 func TestValidateAcceptsValidResults(t *testing.T) {
 	cases := map[string]Result{
-		"eoa":                      res(AccountTypeEOA, []Chain{eoaChain(1, u(3), b(true)), eoaChain(10, u(0), b(false))}, 137),
-		"eoa unknown nonce":        res(AccountTypeEOA, []Chain{eoaChain(1, nil, b(false))}),
+		"eoa":               eoaBase(),
+		"eoa unknown nonce": mod(res(AccountTypeEOA, []Chain{eoaChain(1, nil, b(false))}), func(r *Result) { r.EOA = goodEOA(false) }),
+		// CA1.3: delegation target on an eoa chain, one per chain.
+		"eoa delegation": mod(eoaBase(), func(r *Result) {
+			r.RelatedAddresses = []Related{deleg(1, dtarget), deleg(10, "opaque-not-checked")}
+		}),
+		// OC-P08 note: bounds and non-fixed algorithm.
+		"eoa risk 0, nist 5": mod(eoaBase(), func(r *Result) { r.EOA = &EOA{KeyExposed: true, Algorithm: "ml-dsa-44", NISTLevel: 5, RiskScore: 0} }),
+		"eoa risk 1, nist 1": mod(eoaBase(), func(r *Result) { r.EOA = &EOA{KeyExposed: true, Algorithm: "x", NISTLevel: 1, RiskScore: 1} }),
+		// CA1.7: not_deployed with nonce > 0 gives the anomaly.
+		"contract anomaly":         mod(contractBase(4), func(r *Result) { r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity} }),
+		"contract nonce unknown":   res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract}, {ChainID: 10, Qualification: QualificationNotDeployed}}),
+		"contract empty lists":     mod(contractBase(0), func(r *Result) { r.RelatedAddresses, r.Anomalies = []Related{}, []Anomaly{} }),
 		"contract with undeployed": res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract}, {ChainID: 10, Qualification: QualificationNotDeployed, Nonce: u(0)}}, 137),
-		"blank":                    res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank, Nonce: u(0)}}),
+		"blank":                    blankBase(),
 		"unobserved nil":           res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank}}),
 	}
 	for name, r := range cases {
@@ -98,6 +157,49 @@ func TestValidateRejects(t *testing.T) {
 		"key_exposed on contract chain":       res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract, KeyExposed: b(false)}}),
 		"key_exposed on not_deployed chain":   res(AccountTypeContract, []Chain{ct, {ChainID: 10, Qualification: QualificationNotDeployed, KeyExposed: b(false)}}),
 		"key_exposed on blank chain":          res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank, KeyExposed: b(false)}}),
+		// OC-P08 note: eoa block.
+		"eoa block missing":                      mod(eoaBase(), func(r *Result) { r.EOA = nil }),
+		"eoa block on contract":                  mod(contractBase(0), func(r *Result) { r.EOA = goodEOA(false) }),
+		"eoa block on blank":                     mod(blankBase(), func(r *Result) { r.EOA = goodEOA(false) }),
+		"eoa risk_score < 0":                     mod(eoaBase(), func(r *Result) { r.EOA.RiskScore = -0.1 }),
+		"eoa risk_score > 1":                     mod(eoaBase(), func(r *Result) { r.EOA.RiskScore = 1.1 }),
+		"eoa risk_score NaN":                     mod(eoaBase(), func(r *Result) { r.EOA.RiskScore = math.NaN() }),
+		"eoa risk_score +Inf":                    mod(eoaBase(), func(r *Result) { r.EOA.RiskScore = math.Inf(1) }),
+		"eoa risk_score -Inf":                    mod(eoaBase(), func(r *Result) { r.EOA.RiskScore = math.Inf(-1) }),
+		"eoa nist_level 0":                       mod(eoaBase(), func(r *Result) { r.EOA.NISTLevel = 0 }),
+		"eoa nist_level 6":                       mod(eoaBase(), func(r *Result) { r.EOA.NISTLevel = 6 }),
+		"eoa algorithm empty":                    mod(eoaBase(), func(r *Result) { r.EOA.Algorithm = "" }),
+		"eoa key_exposed false, a chain exposed": mod(eoaBase(), func(r *Result) { r.EOA.KeyExposed = false }),
+		"eoa key_exposed true, no chain exposed": mod(eoaBase(), func(r *Result) {
+			r.Chains = []Chain{eoaChain(1, u(0), b(false))}
+			r.UnobservedChainIDs = nil
+		}),
+		// OC-P08 note: related addresses.
+		"related deployer role":    mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{{RelatedRoleDeployer, 1, dtarget}} }),
+		"related unknown role":     mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{{"owner", 1, dtarget}} }),
+		"related empty role":       mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{{"", 1, dtarget}} }),
+		"related on contract":      mod(contractBase(0), func(r *Result) { r.RelatedAddresses = []Related{deleg(1, dtarget)} }),
+		"related on blank":         mod(blankBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(1, dtarget)} }),
+		"related unobserved chain": mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(137, dtarget)} }),
+		"related unknown chain":    mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(999, dtarget)} }),
+		"related zero chain":       mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(0, dtarget)} }),
+		"related two on one chain": mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(1, dtarget), deleg(1, "0xother")} }),
+		"related duplicate":        mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(1, dtarget), deleg(1, dtarget)} }),
+		"related empty address":    mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(1, "")} }),
+		// OC-P08 note, CA1.7: anomalies.
+		"anomaly on eoa":           mod(eoaBase(), func(r *Result) { r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity} }),
+		"anomaly on blank":         mod(blankBase(), func(r *Result) { r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity} }),
+		"anomaly missing":          contractBase(4),
+		"anomaly without activity": mod(contractBase(0), func(r *Result) { r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity} }),
+		"anomaly with unknown nonce": mod(res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract}, {ChainID: 10, Qualification: QualificationNotDeployed}}), func(r *Result) {
+			r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity}
+		}),
+		"anomaly duplicate": mod(contractBase(4), func(r *Result) {
+			r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity, AnomalyContractWithEOAActivity}
+		}),
+		"anomaly unknown": mod(contractBase(4), func(r *Result) {
+			r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity, "other"}
+		}),
 		// OC-P07 note: chains and chain identifiers.
 		"nil chains":                    res(AccountTypeBlank, nil, 1),
 		"empty chains":                  res(AccountTypeBlank, []Chain{}, 1),
@@ -118,6 +220,31 @@ func TestValidateRejects(t *testing.T) {
 	}
 	for name, r := range cases {
 		mustMalformed(t, name, r.Validate())
+	}
+}
+
+// OC-P08 note: failures name the field path, never a value.
+func TestFactErrorsNameField(t *testing.T) {
+	cases := map[string]struct {
+		r    Result
+		path string
+	}{
+		"eoa":              {mod(eoaBase(), func(r *Result) { r.EOA = nil }), "eoa"},
+		"eoa.risk_score":   {mod(eoaBase(), func(r *Result) { r.EOA.RiskScore = 2 }), "eoa.risk_score"},
+		"eoa.nist_level":   {mod(eoaBase(), func(r *Result) { r.EOA.NISTLevel = 9 }), "eoa.nist_level"},
+		"eoa.algorithm":    {mod(eoaBase(), func(r *Result) { r.EOA.Algorithm = "" }), "eoa.algorithm"},
+		"eoa.key_exposed":  {mod(eoaBase(), func(r *Result) { r.EOA.KeyExposed = false }), "eoa.key_exposed"},
+		"related.role":     {mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{{RelatedRoleDeployer, 1, dtarget}} }), "related_addresses.role"},
+		"related.chain_id": {mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(999, dtarget)} }), "related_addresses.chain_id"},
+		"related.address":  {mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(1, "")} }), "related_addresses.address"},
+		"anomalies":        {contractBase(4), "anomalies"},
+	}
+	for name, c := range cases {
+		err := c.r.Validate()
+		mustMalformed(t, name, err)
+		if err != nil && !strings.Contains(err.Error(), c.path) {
+			t.Errorf("%s: error %q lacks %q", name, err, c.path)
+		}
 	}
 }
 
@@ -307,5 +434,49 @@ func TestErrorOmitsBody(t *testing.T) {
 	mustMalformed(t, "account_type", err)
 	if strings.Contains(err.Error(), "secret-body-marker") {
 		t.Fatalf("error leaks body: %v", err)
+	}
+}
+
+// OC-P08 note: related_addresses and anomalies absent, null or [] decode as empty.
+func TestDecodeFactListsAbsentOrNull(t *testing.T) {
+	head := `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank"}]`
+	for name, tail := range map[string]string{
+		"absent": `}`,
+		"null":   `,"related_addresses":null,"anomalies":null,"eoa":null}`,
+		"empty":  `,"related_addresses":[],"anomalies":[]}`,
+	} {
+		r, err := DecodeResult([]byte(head + tail))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(r.RelatedAddresses) != 0 || len(r.Anomalies) != 0 || r.EOA != nil {
+			t.Fatalf("%s: %+v", name, r)
+		}
+	}
+}
+
+// CA1.3, CA1.7: the eoa facts, delegation target and anomaly survive decoding.
+func TestDecodeFacts(t *testing.T) {
+	read := func(name string) Result {
+		raw, err := os.ReadFile(filepath.Join("testdata", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := DecodeResult(raw)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return r
+	}
+	e := read("ok_eoa_delegation.json")
+	if !reflect.DeepEqual(e.RelatedAddresses, []Related{deleg(10, dtarget)}) {
+		t.Fatalf("related %+v", e.RelatedAddresses)
+	}
+	if !reflect.DeepEqual(e.EOA, &EOA{KeyExposed: true, Algorithm: "ECDSA-secp256k1", NISTLevel: 1, RiskScore: 0.9}) {
+		t.Fatalf("eoa %+v", e.EOA)
+	}
+	c := read("ok_contract_anomaly.json")
+	if !reflect.DeepEqual(c.Anomalies, []Anomaly{AnomalyContractWithEOAActivity}) || c.EOA != nil {
+		t.Fatalf("contract %+v", c)
 	}
 }

@@ -3,8 +3,12 @@
 //
 // A Result holds the address, its account type, the observation time, the
 // chains that were read with their per-chain qualification, and the chains
-// that could not be observed. Validate checks that chains is non-empty, that
-// chains and unobserved_chain_ids are disjoint, and that the qualifications
-// are consistent with the account type. The package does not read chains and
-// does not score keys.
+// that could not be observed. For an eoa it also holds the eoa facts (key
+// exposure, algorithm, NIST level, risk score) and the delegation targets as
+// related addresses; for a contract it holds the anomaly raised when a
+// not_deployed chain has a nonce above zero. Validate checks that chains is
+// non-empty, that chains and unobserved_chain_ids are disjoint, that the
+// qualifications are consistent with the account type, and that the facts are
+// consistent with the chains. The package does not read chains and does not
+// score keys.
 package v1

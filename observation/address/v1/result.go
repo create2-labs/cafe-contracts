@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -13,6 +14,26 @@ type Result struct {
 	ObservedAt         time.Time   `json:"observed_at"`
 	Chains             []Chain     `json:"chains"`
 	UnobservedChainIDs []int64     `json:"unobserved_chain_ids"`
+	RelatedAddresses   []Related   `json:"related_addresses"`
+	Anomalies          []Anomaly   `json:"anomalies"`
+	EOA                *EOA        `json:"eoa"`
+}
+
+// Related is an address found while qualifying the observed address, with its
+// role and the chain where it was found. It is never qualified or scanned.
+type Related struct {
+	Role    RelatedRole `json:"role"`
+	ChainID int64       `json:"chain_id"`
+	Address string      `json:"address"`
+}
+
+// EOA holds the address-level facts of an address of account type eoa. It is
+// nil for any other account type.
+type EOA struct {
+	KeyExposed bool    `json:"key_exposed"`
+	Algorithm  string  `json:"algorithm"`
+	NISTLevel  int     `json:"nist_level"`
+	RiskScore  float64 `json:"risk_score"`
 }
 
 // Chain is the qualification of the address on one observed chain. Nonce is
@@ -28,8 +49,10 @@ type Chain struct {
 // Validate checks the result against the contract: a non-empty address, a
 // known account type, a non-zero observation time, a non-empty list of chains
 // consistent with the account type, and positive chain identifiers that are
-// unique and disjoint between chains and unobserved_chain_ids. Every failure
-// wraps ErrMalformed and names the field, never its value.
+// unique and disjoint between chains and unobserved_chain_ids. It also checks
+// the address-level facts: the eoa block, the related addresses, and the
+// anomalies. Every failure wraps ErrMalformed and names the field path, never
+// its value.
 func (r Result) Validate() error {
 	if r.Address == "" {
 		return malformed("address")
@@ -66,6 +89,103 @@ func (r Result) Validate() error {
 			return malformed("unobserved_chain_ids")
 		}
 		seen[id] = struct{}{}
+	}
+	if err := r.validateEOA(); err != nil {
+		return err
+	}
+	if err := r.validateRelated(); err != nil {
+		return err
+	}
+	return r.validateAnomalies()
+}
+
+// validateEOA checks the eoa block: required for an eoa result, absent
+// otherwise, in range, and consistent with the key_exposed of the chains.
+func (r Result) validateEOA() error {
+	if r.AccountType != AccountTypeEOA {
+		if r.EOA != nil {
+			return malformed("eoa")
+		}
+		return nil
+	}
+	e := r.EOA
+	if e == nil {
+		return malformed("eoa")
+	}
+	if math.IsNaN(e.RiskScore) || e.RiskScore < 0 || e.RiskScore > 1 {
+		return malformed("eoa.risk_score")
+	}
+	if e.NISTLevel < 1 || e.NISTLevel > 5 {
+		return malformed("eoa.nist_level")
+	}
+	// The algorithm is not fixed to one value (crypto-agility).
+	if e.Algorithm == "" {
+		return malformed("eoa.algorithm")
+	}
+	exposed := false
+	for _, c := range r.Chains {
+		exposed = exposed || (c.KeyExposed != nil && *c.KeyExposed)
+	}
+	if e.KeyExposed != exposed {
+		return malformed("eoa.key_exposed")
+	}
+	return nil
+}
+
+// validateRelated checks the related addresses: only for an eoa result, one
+// delegation target at most per observed eoa chain.
+func (r Result) validateRelated() error {
+	if len(r.RelatedAddresses) == 0 {
+		return nil
+	}
+	if r.AccountType != AccountTypeEOA {
+		return malformed("related_addresses")
+	}
+	eoaChains := make(map[int64]struct{}, len(r.Chains))
+	for _, c := range r.Chains {
+		if c.Qualification == QualificationEOA {
+			eoaChains[c.ChainID] = struct{}{}
+		}
+	}
+	seen := make(map[int64]struct{}, len(r.RelatedAddresses))
+	for _, a := range r.RelatedAddresses {
+		if a.Role != RelatedRoleDelegationTarget {
+			return malformed("related_addresses.role")
+		}
+		if _, ok := eoaChains[a.ChainID]; !ok {
+			return malformed("related_addresses.chain_id")
+		}
+		if a.Address == "" {
+			return malformed("related_addresses.address")
+		}
+		// One entry per chain also excludes a duplicate entry.
+		if _, dup := seen[a.ChainID]; dup {
+			return malformed("related_addresses.chain_id")
+		}
+		seen[a.ChainID] = struct{}{}
+	}
+	return nil
+}
+
+// validateAnomalies checks that contract_with_eoa_activity is present exactly
+// when a not_deployed chain has a nonce above zero. An unknown nonce is not
+// evidence of activity.
+func (r Result) validateAnomalies() error {
+	want := false
+	if r.AccountType == AccountTypeContract {
+		for _, c := range r.Chains {
+			want = want || (c.Qualification == QualificationNotDeployed && c.Nonce != nil && *c.Nonce > 0)
+		}
+	}
+	got := false
+	for _, a := range r.Anomalies {
+		if a != AnomalyContractWithEOAActivity || got {
+			return malformed("anomalies")
+		}
+		got = true
+	}
+	if got != want {
+		return malformed("anomalies")
 	}
 	return nil
 }
@@ -126,6 +246,12 @@ func DecodeResult(raw []byte) (Result, error) {
 	}
 	if len(r.UnobservedChainIDs) == 0 {
 		r.UnobservedChainIDs = nil
+	}
+	if len(r.RelatedAddresses) == 0 {
+		r.RelatedAddresses = nil
+	}
+	if len(r.Anomalies) == 0 {
+		r.Anomalies = nil
 	}
 	if err := r.Validate(); err != nil {
 		return Result{}, err
