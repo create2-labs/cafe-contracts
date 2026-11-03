@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -44,6 +45,28 @@ func boolField(raw map[string]json.RawMessage, key string) (bool, error) {
 	default:
 		return false, fmt.Errorf("%w: %s", ErrMalformed, key)
 	}
+}
+
+// int64ArrayField reads a JSON array of integers. A missing field yields nil.
+// Null, a non-array, and an element that is not an integer are rejected.
+func int64ArrayField(raw map[string]json.RawMessage, key string) ([]int64, error) {
+	value, ok := raw[key]
+	if !ok {
+		return nil, nil
+	}
+	var elems []json.RawMessage
+	if err := json.Unmarshal(bytes.TrimSpace(value), &elems); err != nil || elems == nil {
+		return nil, fmt.Errorf("%w: %s", ErrMalformed, key)
+	}
+	out := make([]int64, 0, len(elems))
+	for _, e := range elems {
+		n, err := strconv.ParseInt(string(bytes.TrimSpace(e)), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrMalformed, key)
+		}
+		out = append(out, n)
+	}
+	return out, nil
 }
 
 func uuidField(raw map[string]json.RawMessage, key string) (string, error) {

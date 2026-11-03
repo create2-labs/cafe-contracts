@@ -99,7 +99,7 @@ func assertTLSRoundTrip(t *testing.T, name string, raw []byte, isDefault bool, u
 }
 
 func TestCanonicalUUIDAndDefaults(t *testing.T) {
-	raw := []byte(`{"scan_id":"6F1C0C1E-9B2A-4D3E-8F7A-1C2B3D4E5F60","user_id":"` + NilID + `","address":"0xabc","ignored":1}`)
+	raw := []byte(`{"scan_id":"6F1C0C1E-9B2A-4D3E-8F7A-1C2B3D4E5F60","user_id":"` + NilID + `","address":"0xabc","chain_ids":[1],"ignored":1}`)
 	msg, err := DecodeWallet(raw)
 	if err != nil {
 		t.Fatal(err)
@@ -158,5 +158,50 @@ func TestErrorOmitsBody(t *testing.T) {
 	}
 	if err := (Wallet{ScanID: "6F1C0C1E-9B2A-4D3E-8F7A-1C2B3D4E5F60", UserID: NilID, Address: "0xabc"}).Validate(); err == nil || !errors.Is(err, ErrMalformed) {
 		t.Fatalf("uppercase: %v", err)
+	}
+}
+
+// TASK-CON-001, CA2.5: chain_ids is required, non-empty, positive, and without duplicates.
+func TestWalletChainIDsValidation(t *testing.T) {
+	const id = "6f1c0c1e-9b2a-4d3e-8f7a-1c2b3d4e5f60"
+	cases := []struct {
+		name string
+		ids  []int64
+		ok   bool
+	}{
+		{"one chain", []int64{1}, true},
+		{"several chains keep order", []int64{8453, 1}, true},
+		{"nil", nil, false},
+		{"empty", []int64{}, false},
+		{"zero", []int64{0}, false},
+		{"negative", []int64{-5}, false},
+		{"positive then zero", []int64{1, 0}, false},
+		{"duplicate", []int64{10, 1, 10}, false},
+	}
+	for _, tc := range cases {
+		err := (Wallet{ScanID: id, UserID: NilID, Address: "0xabc", ChainIDs: tc.ids}).Validate()
+		if tc.ok && err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if !tc.ok && (err == nil || !errors.Is(err, ErrMalformed)) {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+	}
+}
+
+// TASK-CON-001, CA2.5: a decoded request carries the chain_ids it was given; a non-array or null is malformed.
+func TestDecodeWalletChainIDs(t *testing.T) {
+	head := `{"scan_id":"6f1c0c1e-9b2a-4d3e-8f7a-1c2b3d4e5f60","user_id":"` + NilID + `","address":"0xabc","chain_ids":`
+	msg, err := DecodeWallet([]byte(head + `[8453,1]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msg.ChainIDs) != 2 || msg.ChainIDs[0] != 8453 || msg.ChainIDs[1] != 1 {
+		t.Fatalf("%+v", msg.ChainIDs)
+	}
+	for _, bad := range []string{`null`, `1`, `"1"`, `[1.5]`, `["1"]`, `[null]`} {
+		if _, err := DecodeWallet([]byte(head + bad + `}`)); err == nil || !errors.Is(err, ErrMalformed) {
+			t.Fatalf("chain_ids %s: %v", bad, err)
+		}
 	}
 }

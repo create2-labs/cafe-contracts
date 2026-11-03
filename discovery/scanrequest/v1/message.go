@@ -6,12 +6,14 @@ import (
 	"fmt"
 )
 
-// Wallet is one wallet scan request: scan_id, user_id, and address.
+// Wallet is one address scan request: scan_id, user_id, address, and chain_ids.
 // It is the current WalletScanMessage. Address is an opaque non-empty string.
+// ChainIDs lists the chains to read: at least one, each positive, no duplicates.
 type Wallet struct {
-	ScanID  string `json:"scan_id"`
-	UserID  string `json:"user_id"`
-	Address string `json:"address"`
+	ScanID   string  `json:"scan_id"`
+	UserID   string  `json:"user_id"`
+	Address  string  `json:"address"`
+	ChainIDs []int64 `json:"chain_ids"`
 }
 
 // TLS is one TLS scan request: scan_id, user_id, endpoint, and is_default.
@@ -56,8 +58,9 @@ func DecodeTLS(raw []byte) (TLS, error) {
 	return msg, nil
 }
 
-// UnmarshalJSON rejects a non-object body and a field that is not a JSON string.
-// A UUID string is stored in canonical lowercase form.
+// UnmarshalJSON rejects a non-object body, a field that is not a JSON string,
+// and a chain_ids that is not an array of JSON integers. A missing chain_ids is
+// left nil and rejected by Validate. A UUID string is stored in canonical lowercase form.
 func (w *Wallet) UnmarshalJSON(data []byte) error {
 	*w = Wallet{}
 	raw, err := objectFields(data)
@@ -70,11 +73,15 @@ func (w *Wallet) UnmarshalJSON(data []byte) error {
 	if w.UserID, err = uuidField(raw, "user_id"); err != nil {
 		return err
 	}
-	w.Address, err = requiredString(raw, "address")
+	if w.Address, err = requiredString(raw, "address"); err != nil {
+		return err
+	}
+	w.ChainIDs, err = int64ArrayField(raw, "chain_ids")
 	return err
 }
 
-// Validate checks the canonical UUID fields and a non-empty address.
+// Validate checks the canonical UUID fields, a non-empty address, and chain_ids:
+// at least one, each positive, no duplicates.
 func (w Wallet) Validate() error {
 	if err := validateID("scan_id", w.ScanID); err != nil {
 		return err
@@ -84,6 +91,19 @@ func (w Wallet) Validate() error {
 	}
 	if w.Address == "" {
 		return fmt.Errorf("%w: address", ErrMalformed)
+	}
+	if len(w.ChainIDs) == 0 {
+		return fmt.Errorf("%w: chain_ids", ErrMalformed)
+	}
+	seen := make(map[int64]struct{}, len(w.ChainIDs))
+	for _, id := range w.ChainIDs {
+		if id <= 0 {
+			return fmt.Errorf("%w: chain_ids", ErrMalformed)
+		}
+		if _, dup := seen[id]; dup {
+			return fmt.Errorf("%w: chain_ids", ErrMalformed)
+		}
+		seen[id] = struct{}{}
 	}
 	return nil
 }
