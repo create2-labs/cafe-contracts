@@ -6,3 +6,7 @@ import "errors"
 // errors.Is. Error text names the field and never includes the message body
 // or a value.
 var ErrRequest = errors.New("indexergateway/contractcreation/v1: invalid request")
+
+// ErrResponse wraps every response validation failure. Callers can use
+// errors.Is. Error text names the field and never includes a value.
+var ErrResponse = errors.New("indexergateway/contractcreation/v1: invalid response")

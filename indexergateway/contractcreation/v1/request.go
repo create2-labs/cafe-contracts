@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/create2-labs/cafe-contracts/address"
@@ -19,7 +20,8 @@ type Request struct {
 	Deadline  string `json:"deadline"`
 }
 
-// DecodeRequest unmarshals and validates a request.
+// DecodeRequest unmarshals and validates a request, then lowercases address
+// so the 0X prefix and mixed-case digits reach consumers as 0x lowercase.
 // On any failure it returns a zero Request, so a rejected body cannot be logged
 // from the result. Use BoundedRequestID to choose the request_id of an
 // invalid_request response.
@@ -34,6 +36,7 @@ func DecodeRequest(raw []byte) (Request, error) {
 	if err := req.Validate(); err != nil {
 		return Request{}, err
 	}
+	req.Address = strings.ToLower(req.Address)
 	return req, nil
 }
 
