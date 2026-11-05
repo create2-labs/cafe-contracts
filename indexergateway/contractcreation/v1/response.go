@@ -1,7 +1,11 @@
 package v1
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/create2-labs/cafe-contracts/address"
 )
@@ -10,8 +14,8 @@ import (
 // Code is one of the seven v1 codes. Message is a generic string of 1 to
 // MaxErrorMessageBytes and does not name a provider.
 type Error struct {
-	Code    string
-	Message string
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // Response is the discriminated creation envelope.
@@ -19,10 +23,10 @@ type Error struct {
 // response has none of Creator, CreationTxHash, and Error. An error has
 // Error and neither Creator nor CreationTxHash.
 type Response struct {
-	RequestID      string
-	Creator        string
-	CreationTxHash string
-	Error          *Error
+	RequestID      string `json:"request_id"`
+	Creator        string `json:"creator,omitempty"`
+	CreationTxHash string `json:"creation_tx_hash,omitempty"`
+	Error          *Error `json:"error,omitempty"`
 }
 
 // Validate checks an in-memory envelope.
@@ -74,3 +78,116 @@ func validateResponseID(id, code string) error {
 	}
 	return nil
 }
+
+// MarshalJSON validates the envelope, then writes it. request_id is always
+// written. A found response adds creator and, when non-empty,
+// creation_tx_hash. A not found response has request_id only. An error adds
+// error only.
+func (r Response) MarshalJSON() ([]byte, error) {
+	if err := r.Validate(); err != nil {
+		return nil, err
+	}
+	type wire Response
+	return json.Marshal(wire(r))
+}
+
+// DecodeResponse unmarshals and validates a response envelope.
+// Unreadable JSON is an invalid response. On failure the result is zero.
+func DecodeResponse(raw []byte) (Response, error) {
+	return decodeResponse(raw)
+}
+
+// UnmarshalJSON decodes and validates a response envelope. Unknown fields are
+// ignored. creator is delivered in lowercase. The receiver is left unchanged
+// on failure.
+func (r *Response) UnmarshalJSON(data []byte) error {
+	decoded, err := decodeResponse(data)
+	if err != nil {
+		return err
+	}
+	*r = decoded
+	return nil
+}
+
+func decodeResponse(data []byte) (Response, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil || raw == nil {
+		return Response{}, fmt.Errorf("%w: json", ErrResponse)
+	}
+	var resp Response
+	var err error
+	if resp.RequestID, err = optionalString(raw, "request_id"); err != nil {
+		return Response{}, fmt.Errorf("%w: request_id", ErrResponse)
+	}
+	if resp.Creator, err = optionalNonEmptyString(raw, "creator"); err != nil {
+		return Response{}, err
+	}
+	if resp.CreationTxHash, err = optionalNonEmptyString(raw, "creation_tx_hash"); err != nil {
+		return Response{}, err
+	}
+	if errRaw, ok := raw["error"]; ok {
+		body, err := decodeError(errRaw)
+		if err != nil {
+			return Response{}, err
+		}
+		resp.Error = &body
+	}
+	if err := resp.Validate(); err != nil {
+		return Response{}, err
+	}
+	resp.Creator = strings.ToLower(resp.Creator)
+	return resp, nil
+}
+
+func decodeError(raw json.RawMessage) (Error, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {
+		return Error{}, fmt.Errorf("%w: error", ErrResponse)
+	}
+	codeRaw, ok := fields["code"]
+	if !ok {
+		return Error{}, fmt.Errorf("%w: error.code", ErrResponse)
+	}
+	code, err := jsonString(codeRaw)
+	if err != nil || !ValidCode(code) {
+		return Error{}, fmt.Errorf("%w: error.code", ErrResponse)
+	}
+	msgRaw, ok := fields["message"]
+	if !ok {
+		return Error{}, fmt.Errorf("%w: error.message", ErrResponse)
+	}
+	msg, err := jsonString(msgRaw)
+	if err != nil {
+		return Error{}, fmt.Errorf("%w: error.message", ErrResponse)
+	}
+	return Error{Code: code, Message: msg}, nil
+}
+
+// optionalNonEmptyString reads a field that may be absent but, when present,
+// must be a non-empty JSON string.
+func optionalNonEmptyString(raw map[string]json.RawMessage, key string) (string, error) {
+	s, err := optionalString(raw, key)
+	_, present := raw[key]
+	if err != nil || (present && s == "") {
+		return "", fmt.Errorf("%w: %s", ErrResponse, key)
+	}
+	return s, nil
+}
+
+func optionalString(raw map[string]json.RawMessage, key string) (string, error) {
+	value, ok := raw[key]
+	if !ok {
+		return "", nil
+	}
+	return jsonString(value)
+}
+
+func jsonString(raw json.RawMessage) (string, error) {
+	var s string
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) || json.Unmarshal(raw, &s) != nil {
+		return "", errNotString
+	}
+	return s, nil
+}
+
+var errNotString = errors.New("indexergateway/contractcreation/v1: json string required")
