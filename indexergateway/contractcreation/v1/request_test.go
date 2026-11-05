@@ -76,8 +76,27 @@ func TestDecodeRequestAcceptsBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != req {
+	want := req
+	want.Address = validAddress
+	if got != want {
 		t.Fatalf("changed request: %+v", got)
+	}
+}
+
+// CA3.2: a 0X address prefix is accepted and decoded to lowercase 0x.
+func TestDecodeRequestAcceptsUpperPrefix(t *testing.T) {
+	req := validRequest()
+	req.Address = "0X742D35CC6634C0532925A3B844BC454E4438F44E"
+	raw, err := json.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := DecodeRequest(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Address != validAddress {
+		t.Fatalf("address = %q", got.Address)
 	}
 }
 
