@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.0](https://github.com/create2-labs/cafe-contracts/compare/v1.0.0...v1.1.0) (2026-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **contracts:** observation/address/v1 validation rules change: (1) chains.key_exposed is true on a delegated eoa chain whatever its nonce, instead of nonce > 0; (2) chains.nonce is required on every chain without contract code that carries no delegation_target, instead of optional; (3) related_addresses accepts a delegation_target on a not_deployed chain of a contract result, instead of eoa only; (4) contract_with_eoa_activity is also required by a not_deployed chain with a delegation_target. Results valid under 1.0.0 may be rejected, and the reverse.
+
+### Features
+
+* **contracts:** expose the key on a delegation designator and require a read nonce ([486356b](https://github.com/create2-labs/cafe-contracts/commit/486356b639a84c2c7ac9941701739e1922a60bd5))
+
 ## [1.0.0](https://github.com/create2-labs/cafe-contracts/compare/v0.0.1...v1.0.0) (2026-11-06)
 
 
