@@ -37,8 +37,8 @@ type EOA struct {
 }
 
 // Chain is the qualification of the address on one observed chain. Nonce is
-// nil when it was not read. KeyExposed is nil when not reported; it is
-// reported on eoa chains.
+// nil only on a contract chain or on a delegated chain whose nonce read
+// failed. KeyExposed is reported on eoa chains only.
 type Chain struct {
 	ChainID       int64         `json:"chain_id"`
 	Qualification Qualification `json:"qualification"`
@@ -49,10 +49,11 @@ type Chain struct {
 // Validate checks the result against the contract: a non-empty address, a
 // known account type, a non-zero observation time, a non-empty list of chains
 // consistent with the account type, and positive chain identifiers that are
-// unique and disjoint between chains and unobserved_chain_ids. It also checks
-// the address-level facts: the eoa block, the related addresses, and the
-// anomalies. Every failure wraps ErrMalformed and names the field path, never
-// its value.
+// unique and disjoint between chains and unobserved_chain_ids. A chain is
+// delegated when related_addresses holds a delegation_target for it. It also
+// checks the address-level facts: the eoa block, the related addresses, and
+// the anomalies. Every failure wraps ErrMalformed and names the field path,
+// never its value.
 func (r Result) Validate() error {
 	if r.Address == "" {
 		return malformed("address")
@@ -66,10 +67,11 @@ func (r Result) Validate() error {
 	if len(r.Chains) == 0 {
 		return malformed("chains")
 	}
+	delegated := r.delegatedChains()
 	seen := make(map[int64]struct{}, len(r.Chains)+len(r.UnobservedChainIDs))
 	hasContract := false
 	for _, c := range r.Chains {
-		if err := c.validate(r.AccountType); err != nil {
+		if err := c.validate(r.AccountType, delegated[c.ChainID]); err != nil {
 			return err
 		}
 		if _, dup := seen[c.ChainID]; dup {
@@ -97,6 +99,19 @@ func (r Result) Validate() error {
 		return err
 	}
 	return r.validateAnomalies()
+}
+
+// delegatedChains returns the identifiers of the chains that carry a
+// delegation_target entry. The entries are read without being validated, so
+// that a chains.* error precedes a related_addresses.* error.
+func (r Result) delegatedChains() map[int64]bool {
+	m := make(map[int64]bool, len(r.RelatedAddresses))
+	for _, a := range r.RelatedAddresses {
+		if a.Role == RelatedRoleDelegationTarget {
+			m[a.ChainID] = true
+		}
+	}
+	return m
 }
 
 // validateEOA checks the eoa block: required for an eoa result, absent
@@ -132,19 +147,26 @@ func (r Result) validateEOA() error {
 	return nil
 }
 
-// validateRelated checks the related addresses: only for an eoa result, one
-// delegation target at most per observed eoa chain.
+// validateRelated checks the related addresses: only for an eoa result, on
+// its eoa chains, or for a contract result, on its not_deployed chains; one
+// delegation target at most per chain.
 func (r Result) validateRelated() error {
 	if len(r.RelatedAddresses) == 0 {
 		return nil
 	}
-	if r.AccountType != AccountTypeEOA {
+	var want Qualification
+	switch r.AccountType {
+	case AccountTypeEOA:
+		want = QualificationEOA
+	case AccountTypeContract:
+		want = QualificationNotDeployed
+	default:
 		return malformed("related_addresses")
 	}
-	eoaChains := make(map[int64]struct{}, len(r.Chains))
+	eligible := make(map[int64]struct{}, len(r.Chains))
 	for _, c := range r.Chains {
-		if c.Qualification == QualificationEOA {
-			eoaChains[c.ChainID] = struct{}{}
+		if c.Qualification == want {
+			eligible[c.ChainID] = struct{}{}
 		}
 	}
 	seen := make(map[int64]struct{}, len(r.RelatedAddresses))
@@ -152,7 +174,7 @@ func (r Result) validateRelated() error {
 		if a.Role != RelatedRoleDelegationTarget {
 			return malformed("related_addresses.role")
 		}
-		if _, ok := eoaChains[a.ChainID]; !ok {
+		if _, ok := eligible[a.ChainID]; !ok {
 			return malformed("related_addresses.chain_id")
 		}
 		if a.Address == "" {
@@ -168,13 +190,16 @@ func (r Result) validateRelated() error {
 }
 
 // validateAnomalies checks that contract_with_eoa_activity is present exactly
-// when a not_deployed chain has a nonce above zero. An unknown nonce is not
-// evidence of activity.
+// when a not_deployed chain has a nonce above zero or a delegation_target. An
+// unknown nonce is not evidence of activity, but a designator is evidence of
+// an EOA, whatever the nonce.
 func (r Result) validateAnomalies() error {
 	want := false
 	if r.AccountType == AccountTypeContract {
+		delegated := r.delegatedChains()
 		for _, c := range r.Chains {
-			want = want || (c.Qualification == QualificationNotDeployed && c.Nonce != nil && *c.Nonce > 0)
+			want = want || (c.Qualification == QualificationNotDeployed &&
+				(delegated[c.ChainID] || (c.Nonce != nil && *c.Nonce > 0)))
 		}
 	}
 	got := false
@@ -190,13 +215,18 @@ func (r Result) validateAnomalies() error {
 	return nil
 }
 
-// validate checks one chain against the account type of the result.
-func (c Chain) validate(t AccountType) error {
+// validate checks one chain against the account type of the result. A chain
+// without contract code needs its nonce, unless it is delegated: a designator
+// chain stays observed when its nonce read fails.
+func (c Chain) validate(t AccountType, delegated bool) error {
 	if c.ChainID <= 0 {
 		return malformed("chains.chain_id")
 	}
 	if !c.Qualification.IsValid() || !allowed(t, c.Qualification) {
 		return malformed("chains.qualification")
+	}
+	if c.Qualification != QualificationContract && c.Nonce == nil && !delegated {
+		return malformed("chains.nonce")
 	}
 	if c.Qualification == QualificationBlank && c.Nonce != nil && *c.Nonce > 0 {
 		return malformed("chains.nonce")
@@ -207,9 +237,10 @@ func (c Chain) validate(t AccountType) error {
 		}
 		return nil
 	}
-	// A nonce above zero means the account has sent a transaction, so its
-	// public key is exposed. An unknown nonce is not evidence of exposure.
-	exposed := c.Nonce != nil && *c.Nonce > 0
+	// A designator exposes the key whatever the nonce; otherwise a nonce above
+	// zero means the account has sent a transaction. The nonce is present
+	// when the chain is not delegated.
+	exposed := delegated || *c.Nonce > 0
 	if c.KeyExposed == nil || *c.KeyExposed != exposed {
 		return malformed("chains.key_exposed")
 	}

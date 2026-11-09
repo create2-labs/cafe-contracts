@@ -108,22 +108,40 @@ func TestEnumIsValid(t *testing.T) {
 // CA1.1-CA1.3, CA2.2: one valid result per account type.
 func TestValidateAcceptsValidResults(t *testing.T) {
 	cases := map[string]Result{
-		"eoa":               eoaBase(),
-		"eoa unknown nonce": mod(res(AccountTypeEOA, []Chain{eoaChain(1, nil, b(false))}), func(r *Result) { r.EOA = goodEOA(false) }),
-		// CA1.3: delegation target on an eoa chain, one per chain.
+		"eoa": eoaBase(),
+		// CA1.3, CA2.6: delegation target on an eoa chain, one per chain; a
+		// designator chain has key_exposed true whatever its nonce.
 		"eoa delegation": mod(eoaBase(), func(r *Result) {
+			r.Chains[1].KeyExposed = b(true)
 			r.RelatedAddresses = []Related{deleg(1, dtarget), deleg(10, "opaque-not-checked")}
+		}),
+		"designator nonce 0, key_exposed true": mod(res(AccountTypeEOA, []Chain{eoaChain(1, u(0), b(true))}), func(r *Result) {
+			r.EOA = goodEOA(true)
+			r.RelatedAddresses = []Related{deleg(1, dtarget)}
+		}),
+		"designator nonce absent, key_exposed true": mod(res(AccountTypeEOA, []Chain{eoaChain(1, nil, b(true))}), func(r *Result) {
+			r.EOA = goodEOA(true)
+			r.RelatedAddresses = []Related{deleg(1, dtarget)}
+		}),
+		// CA1.7: a not_deployed designator chain under contract raises the
+		// anomaly whatever its nonce.
+		"contract designator nonce 0": mod(contractBase(0), func(r *Result) {
+			r.RelatedAddresses = []Related{deleg(10, dtarget)}
+			r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity}
+		}),
+		"contract designator nonce absent": mod(res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract}, {ChainID: 10, Qualification: QualificationNotDeployed}}), func(r *Result) {
+			r.RelatedAddresses = []Related{deleg(10, dtarget)}
+			r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity}
 		}),
 		// OC-P08 note: bounds and non-fixed algorithm.
 		"eoa risk 0, nist 5": mod(eoaBase(), func(r *Result) { r.EOA = &EOA{KeyExposed: true, Algorithm: "ml-dsa-44", NISTLevel: 5, RiskScore: 0} }),
 		"eoa risk 1, nist 1": mod(eoaBase(), func(r *Result) { r.EOA = &EOA{KeyExposed: true, Algorithm: "x", NISTLevel: 1, RiskScore: 1} }),
 		// CA1.7: not_deployed with nonce > 0 gives the anomaly.
 		"contract anomaly":         mod(contractBase(4), func(r *Result) { r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity} }),
-		"contract nonce unknown":   res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract}, {ChainID: 10, Qualification: QualificationNotDeployed}}),
 		"contract empty lists":     mod(contractBase(0), func(r *Result) { r.RelatedAddresses, r.Anomalies = []Related{}, []Anomaly{} }),
 		"contract with undeployed": res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract}, {ChainID: 10, Qualification: QualificationNotDeployed, Nonce: u(0)}}, 137),
 		"blank":                    blankBase(),
-		"unobserved nil":           res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank}}),
+		"unobserved nil":           res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank, Nonce: u(0)}}),
 	}
 	for name, r := range cases {
 		if err := r.Validate(); err != nil {
@@ -135,15 +153,15 @@ func TestValidateAcceptsValidResults(t *testing.T) {
 // CA1.4, CA2.2: the consistency table and chain rules reject violations.
 func TestValidateRejects(t *testing.T) {
 	ct := Chain{ChainID: 1, Qualification: QualificationContract}
-	nd := Chain{ChainID: 10, Qualification: QualificationNotDeployed}
-	bl := Chain{ChainID: 1, Qualification: QualificationBlank}
+	nd := Chain{ChainID: 10, Qualification: QualificationNotDeployed, Nonce: u(0)}
+	bl := Chain{ChainID: 1, Qualification: QualificationBlank, Nonce: u(0)}
 	cases := map[string]Result{
 		"contract without contract chain": res(AccountTypeContract, []Chain{nd}),
 		"contract with eoa chain":         res(AccountTypeContract, []Chain{ct, eoaChain(10, u(1), b(true))}),
-		"contract with blank chain":       res(AccountTypeContract, []Chain{ct, {ChainID: 10, Qualification: QualificationBlank}}),
+		"contract with blank chain":       res(AccountTypeContract, []Chain{ct, {ChainID: 10, Qualification: QualificationBlank, Nonce: u(0)}}),
 		"eoa with contract chain":         res(AccountTypeEOA, []Chain{eoaChain(1, u(1), b(true)), {ChainID: 10, Qualification: QualificationContract}}),
 		"eoa with not_deployed chain":     res(AccountTypeEOA, []Chain{eoaChain(1, u(1), b(true)), nd}),
-		"eoa with blank chain":            res(AccountTypeEOA, []Chain{eoaChain(1, u(1), b(true)), {ChainID: 10, Qualification: QualificationBlank}}),
+		"eoa with blank chain":            res(AccountTypeEOA, []Chain{eoaChain(1, u(1), b(true)), {ChainID: 10, Qualification: QualificationBlank, Nonce: u(0)}}),
 		"blank with eoa chain":            res(AccountTypeBlank, []Chain{bl, eoaChain(10, u(0), b(false))}),
 		"blank with contract chain":       res(AccountTypeBlank, []Chain{bl, {ChainID: 10, Qualification: QualificationContract}}),
 		"blank with not_deployed chain":   res(AccountTypeBlank, []Chain{bl, nd}),
@@ -155,8 +173,24 @@ func TestValidateRejects(t *testing.T) {
 		"eoa key_exposed true, nonce 0":       res(AccountTypeEOA, []Chain{eoaChain(1, u(0), b(true))}),
 		"eoa key_exposed true, nonce unknown": res(AccountTypeEOA, []Chain{eoaChain(1, nil, b(true))}),
 		"key_exposed on contract chain":       res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract, KeyExposed: b(false)}}),
-		"key_exposed on not_deployed chain":   res(AccountTypeContract, []Chain{ct, {ChainID: 10, Qualification: QualificationNotDeployed, KeyExposed: b(false)}}),
-		"key_exposed on blank chain":          res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank, KeyExposed: b(false)}}),
+		"key_exposed on not_deployed chain":   res(AccountTypeContract, []Chain{ct, {ChainID: 10, Qualification: QualificationNotDeployed, Nonce: u(0), KeyExposed: b(false)}}),
+		"key_exposed on blank chain":          res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank, Nonce: u(0), KeyExposed: b(false)}}),
+		// CA1.3, CA2.6: key_exposed on a designator chain is true whatever the nonce.
+		"designator key_exposed false": mod(res(AccountTypeEOA, []Chain{eoaChain(1, u(0), b(false))}), func(r *Result) {
+			r.EOA = goodEOA(false)
+			r.RelatedAddresses = []Related{deleg(1, dtarget)}
+		}),
+		"designator key_exposed absent": mod(res(AccountTypeEOA, []Chain{eoaChain(1, nil, nil)}), func(r *Result) {
+			r.EOA = goodEOA(false)
+			r.RelatedAddresses = []Related{deleg(1, dtarget)}
+		}),
+		// CA2.6: a chain with empty code and an unread nonce is unobserved,
+		// unless it carries a delegation_target.
+		"eoa nonce missing, not delegated":          mod(res(AccountTypeEOA, []Chain{eoaChain(1, nil, b(false))}), func(r *Result) { r.EOA = goodEOA(false) }),
+		"not_deployed nonce missing, not delegated": res(AccountTypeContract, []Chain{ct, {ChainID: 10, Qualification: QualificationNotDeployed}}),
+		"blank nonce missing":                       res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank}}),
+		// CA1.7: a not_deployed designator chain requires the anomaly.
+		"contract designator without anomaly": mod(contractBase(0), func(r *Result) { r.RelatedAddresses = []Related{deleg(10, dtarget)} }),
 		// OC-P08 note: eoa block.
 		"eoa block missing":                      mod(eoaBase(), func(r *Result) { r.EOA = nil }),
 		"eoa block on contract":                  mod(contractBase(0), func(r *Result) { r.EOA = goodEOA(false) }),
@@ -191,6 +225,7 @@ func TestValidateRejects(t *testing.T) {
 		"anomaly on blank":         mod(blankBase(), func(r *Result) { r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity} }),
 		"anomaly missing":          contractBase(4),
 		"anomaly without activity": mod(contractBase(0), func(r *Result) { r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity} }),
+		// Now rejected on chains.nonce: an unread nonce on a not-delegated chain.
 		"anomaly with unknown nonce": mod(res(AccountTypeContract, []Chain{{ChainID: 1, Qualification: QualificationContract}, {ChainID: 10, Qualification: QualificationNotDeployed}}), func(r *Result) {
 			r.Anomalies = []Anomaly{AnomalyContractWithEOAActivity}
 		}),
@@ -238,6 +273,15 @@ func TestFactErrorsNameField(t *testing.T) {
 		"related.chain_id": {mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(999, dtarget)} }), "related_addresses.chain_id"},
 		"related.address":  {mod(eoaBase(), func(r *Result) { r.RelatedAddresses = []Related{deleg(1, "")} }), "related_addresses.address"},
 		"anomalies":        {contractBase(4), "anomalies"},
+		// CA1.3, CA1.7, CA2.6, OC-P71.
+		"chains.nonce eoa":   {mod(res(AccountTypeEOA, []Chain{eoaChain(1, nil, b(false))}), func(r *Result) { r.EOA = goodEOA(false) }), "chains.nonce"},
+		"chains.nonce blank": {res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank}}), "chains.nonce"},
+		"chains.key_exposed designator": {mod(res(AccountTypeEOA, []Chain{eoaChain(1, u(0), b(false))}), func(r *Result) {
+			r.EOA = goodEOA(false)
+			r.RelatedAddresses = []Related{deleg(1, dtarget)}
+		}), "chains.key_exposed"},
+		"anomalies designator":            {mod(contractBase(0), func(r *Result) { r.RelatedAddresses = []Related{deleg(10, dtarget)} }), "anomalies"},
+		"related.chain_id contract chain": {mod(contractBase(0), func(r *Result) { r.RelatedAddresses = []Related{deleg(1, dtarget)} }), "related_addresses.chain_id"},
 	}
 	for name, c := range cases {
 		err := c.r.Validate()
@@ -250,7 +294,7 @@ func TestFactErrorsNameField(t *testing.T) {
 
 // OC-P07 note: observed_at accepts any RFC 3339 offset.
 func TestObservedAtOffset(t *testing.T) {
-	r := res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank}})
+	r := res(AccountTypeBlank, []Chain{{ChainID: 1, Qualification: QualificationBlank, Nonce: u(0)}})
 	r.ObservedAt = time.Date(2026, 10, 23, 12, 0, 0, 0, time.FixedZone("", 2*3600))
 	if err := r.Validate(); err != nil {
 		t.Fatal(err)
@@ -346,7 +390,8 @@ func TestDecodeObservedAtOffset(t *testing.T) {
 	}
 }
 
-// CA1.2: nonce stays optional, unknown is not zero; key_exposed is kept.
+// CA1.2, CA2.6: key_exposed is kept; a chain whose nonce was not read is
+// unobserved, not a chain without a nonce.
 func TestDecodeEOAFacts(t *testing.T) {
 	raw, err := os.ReadFile("testdata/ok_eoa.json")
 	if err != nil {
@@ -356,7 +401,7 @@ func TestDecodeEOAFacts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(r.Chains) != 3 {
+	if len(r.Chains) != 2 {
 		t.Fatalf("chains %+v", r.Chains)
 	}
 	if r.Chains[0].Nonce == nil || *r.Chains[0].Nonce != 3 || r.Chains[0].KeyExposed == nil || !*r.Chains[0].KeyExposed {
@@ -365,14 +410,14 @@ func TestDecodeEOAFacts(t *testing.T) {
 	if r.Chains[1].Nonce == nil || *r.Chains[1].Nonce != 0 || *r.Chains[1].KeyExposed {
 		t.Fatalf("chain 1 %+v", r.Chains[1])
 	}
-	if r.Chains[2].Nonce != nil || r.Chains[2].KeyExposed == nil || *r.Chains[2].KeyExposed {
-		t.Fatalf("chain 2 %+v", r.Chains[2])
+	if !reflect.DeepEqual(r.UnobservedChainIDs, []int64{137, 8453}) {
+		t.Fatalf("unobserved %+v", r.UnobservedChainIDs)
 	}
 }
 
 // CA2.1, OC-P07 note: unobserved_chain_ids absent or null is empty.
 func TestDecodeUnobservedAbsentOrNull(t *testing.T) {
-	head := `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank"}]`
+	head := `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank","nonce":0}]`
 	for name, raw := range map[string]string{"absent": head + `}`, "null": head + `,"unobserved_chain_ids":null}`, "empty": head + `,"unobserved_chain_ids":[]}`} {
 		r, err := DecodeResult([]byte(raw))
 		if err != nil {
@@ -386,7 +431,7 @@ func TestDecodeUnobservedAbsentOrNull(t *testing.T) {
 
 // OC-P07 note: malformed shapes and wrong types wrap ErrMalformed, zero Result.
 func TestDecodeMalformedShapes(t *testing.T) {
-	ok := `"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank"}]`
+	ok := `"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank","nonce":0}]`
 	cases := map[string]string{
 		"empty body":          ``,
 		"not json":            `{`,
@@ -408,7 +453,7 @@ func TestDecodeMalformedShapes(t *testing.T) {
 		"chains null":         `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":null}`,
 		"chain id string":     `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":"1","qualification":"blank"}]}`,
 		"chain id zero":       `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":0,"qualification":"blank"}]}`,
-		"chain id duplicate":  `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank"},{"chain_id":1,"qualification":"blank"}]}`,
+		"chain id duplicate":  `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank","nonce":0},{"chain_id":1,"qualification":"blank","nonce":0}]}`,
 		"qualification bad":   `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"x"}]}`,
 		"nonce string":        `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank","nonce":"0"}]}`,
 		"nonce negative":      `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank","nonce":-1}]}`,
@@ -439,7 +484,7 @@ func TestErrorOmitsBody(t *testing.T) {
 
 // OC-P08 note: related_addresses and anomalies absent, null or [] decode as empty.
 func TestDecodeFactListsAbsentOrNull(t *testing.T) {
-	head := `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank"}]`
+	head := `{"address":"` + addr + `","account_type":"blank","observed_at":"2026-10-23T10:00:00Z","chains":[{"chain_id":1,"qualification":"blank","nonce":0}]`
 	for name, tail := range map[string]string{
 		"absent": `}`,
 		"null":   `,"related_addresses":null,"anomalies":null,"eoa":null}`,
@@ -469,14 +514,27 @@ func TestDecodeFacts(t *testing.T) {
 		return r
 	}
 	e := read("ok_eoa_delegation.json")
-	if !reflect.DeepEqual(e.RelatedAddresses, []Related{deleg(10, dtarget)}) {
+	if !reflect.DeepEqual(e.RelatedAddresses, []Related{deleg(10, dtarget), deleg(8453, "0x3333333333333333333333333333333333333333")}) {
 		t.Fatalf("related %+v", e.RelatedAddresses)
 	}
 	if !reflect.DeepEqual(e.EOA, &EOA{KeyExposed: true, Algorithm: "ECDSA-secp256k1", NISTLevel: 1, RiskScore: 0.9}) {
 		t.Fatalf("eoa %+v", e.EOA)
 	}
+	// CA1.3: a designator chain exposes the key whatever its nonce; the
+	// nonce stays absent when its read failed.
+	if k := e.Chains[1]; k.KeyExposed == nil || !*k.KeyExposed {
+		t.Fatalf("designator nonce 0 %+v", k)
+	}
+	if k := e.Chains[2]; k.Nonce != nil || k.KeyExposed == nil || !*k.KeyExposed {
+		t.Fatalf("designator nonce absent %+v", k)
+	}
 	c := read("ok_contract_anomaly.json")
 	if !reflect.DeepEqual(c.Anomalies, []Anomaly{AnomalyContractWithEOAActivity}) || c.EOA != nil {
 		t.Fatalf("contract %+v", c)
+	}
+	// CA1.7: a not_deployed designator chain raises the anomaly.
+	d := read("ok_contract_anomaly_delegation.json")
+	if !reflect.DeepEqual(d.Anomalies, []Anomaly{AnomalyContractWithEOAActivity}) || !reflect.DeepEqual(d.RelatedAddresses, []Related{deleg(10, dtarget)}) || d.Chains[1].Nonce != nil {
+		t.Fatalf("contract designator %+v", d)
 	}
 }
