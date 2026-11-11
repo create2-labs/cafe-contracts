@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/create2-labs/cafe-contracts/compare/v1.1.0...v1.1.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **deps:** raise the golang.org/x module requirements ([a469051](https://github.com/create2-labs/cafe-contracts/commit/a4690518418b270e019044f84384a654878c4e30))
+* **deps:** raise the golang.org/x module requirements ([ddca28e](https://github.com/create2-labs/cafe-contracts/commit/ddca28e45908bc3e38b31f0fd28f5e385b093df6))
+
 ## [1.1.0](https://github.com/create2-labs/cafe-contracts/compare/v1.0.0...v1.1.0) (2026-11-09)
 
 
