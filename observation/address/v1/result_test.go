@@ -308,6 +308,24 @@ func TestResultVectors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// OC-P75: the field path each bad_* vector is rejected on (design 11.4).
+	wantPath := map[string]string{
+		"bad_array.json":                          "json",
+		"bad_null.json":                           "address",
+		"bad_chains_empty.json":                   "chains",
+		"bad_blank_nonce_missing.json":            "chains.nonce",
+		"bad_eoa_nonce_missing.json":              "chains.nonce",
+		"bad_blank_with_eoa_chain.json":           "chains.qualification",
+		"bad_contract_with_eoa_chain.json":        "chains.qualification",
+		"bad_eoa_with_blank_chain.json":           "chains.qualification",
+		"bad_contract_no_contract_chain.json":     "chains.qualification",
+		"bad_eoa_key_exposed_missing.json":        "chains.key_exposed",
+		"bad_eoa_key_exposed_mismatch.json":       "chains.key_exposed",
+		"bad_eoa_delegation_not_exposed.json":     "chains.key_exposed",
+		"bad_overlap.json":                        "unobserved_chain_ids",
+		"bad_contract_delegation_no_anomaly.json": "anomalies",
+	}
+	read := make(map[string]bool, len(wantPath))
 	var ok, bad int
 	for _, e := range entries {
 		name := e.Name()
@@ -343,6 +361,22 @@ func TestResultVectors(t *testing.T) {
 			if !reflect.DeepEqual(r, Result{}) {
 				t.Fatalf("%s: non-zero result on error: %+v", name, r)
 			}
+			read[name] = true
+			want, found := wantPath[name]
+			if !found {
+				t.Errorf("%s: no expected field path in the table", name)
+			} else if err != nil {
+				// Exact comparison: chains is a prefix of chains.nonce.
+				got, cut := strings.CutPrefix(err.Error(), ErrMalformed.Error()+": ")
+				if !cut || got != want {
+					t.Errorf("%s: want path %q, got error %q", name, want, err)
+				}
+			}
+		}
+	}
+	for name := range wantPath {
+		if !read[name] {
+			t.Errorf("%s: expected-path entry has no bad_* vector in testdata", name)
 		}
 	}
 	if ok < 3 || bad < 8 {
