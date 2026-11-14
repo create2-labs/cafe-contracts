@@ -150,10 +150,10 @@ func TestRejectedShapes(t *testing.T) {
 }
 
 func TestErrorOmitsBody(t *testing.T) {
-	const token = "body-must-not-leak"
-	raw := []byte(`{"scan_id":"bad","user_id":"bad","address":"` + token + `"}`)
+	const marker = "body-must-not-leak"
+	raw := []byte(`{"scan_id":"bad","user_id":"bad","address":"` + marker + `"}`)
 	_, err := DecodeWallet(raw)
-	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), token) {
+	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), marker) {
 		t.Fatalf("%v", err)
 	}
 	if err := (Wallet{ScanID: "6F1C0C1E-9B2A-4D3E-8F7A-1C2B3D4E5F60", UserID: NilID, Address: "0xabc"}).Validate(); err == nil || !errors.Is(err, ErrMalformed) {

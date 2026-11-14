@@ -3,9 +3,9 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"math"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -329,7 +329,7 @@ func TestResultVectors(t *testing.T) {
 	var ok, bad int
 	for _, e := range entries {
 		name := e.Name()
-		raw, err := os.ReadFile(filepath.Join(dir, name))
+		raw, err := fs.ReadFile(os.DirFS(dir), name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -537,7 +537,7 @@ func TestDecodeFactListsAbsentOrNull(t *testing.T) {
 // CA1.3, CA1.7: the eoa facts, delegation target and anomaly survive decoding.
 func TestDecodeFacts(t *testing.T) {
 	read := func(name string) Result {
-		raw, err := os.ReadFile(filepath.Join("testdata", name))
+		raw, err := fs.ReadFile(os.DirFS("testdata"), name)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -3,8 +3,8 @@ package cafenatsv01
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -38,10 +38,9 @@ func TestNATSKeyConstants_Unique(t *testing.T) {
 
 func readFixture(t *testing.T, name string) []byte {
 	t.Helper()
-	path := filepath.Join("testdata", name)
-	b, err := os.ReadFile(path)
+	b, err := fs.ReadFile(os.DirFS("testdata"), name)
 	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
+		t.Fatalf("read %s: %v", name, err)
 	}
 	return b
 }

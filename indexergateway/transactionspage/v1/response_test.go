@@ -33,8 +33,8 @@ func TestResponseVectors(t *testing.T) {
 			if string(out) != strings.TrimSpace(string(raw)) {
 				t.Fatalf("%s round trip:\n%s\nvs\n%s", name, out, raw)
 			}
-			switch {
-			case name == "ok_response_page.json":
+			switch name {
+			case "ok_response_page.json":
 				sawPage = true
 				if len(resp.Transactions) != 2 || resp.Transactions[0].Hash != "0x02" || resp.Transactions[1].Hash != "0x01" {
 					t.Fatalf("order changed: %+v", resp.Transactions)
@@ -45,7 +45,7 @@ func TestResponseVectors(t *testing.T) {
 				if strings.Contains(string(out), `"error"`) {
 					t.Fatal("page contains error")
 				}
-			case name == "ok_response_empty.json":
+			case "ok_response_empty.json":
 				sawEmpty = true
 				if resp.Transactions == nil || len(resp.Transactions) != 0 || resp.NextCursor != "" {
 					t.Fatalf("empty page: %+v", resp)
