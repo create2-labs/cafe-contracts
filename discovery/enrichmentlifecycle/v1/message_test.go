@@ -3,8 +3,8 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -175,7 +175,7 @@ func TestVectors(t *testing.T) {
 	var ok, bad int
 	for _, e := range entries {
 		name := e.Name()
-		raw, err := os.ReadFile(filepath.Join("testdata", name))
+		raw, err := fs.ReadFile(os.DirFS("testdata"), name)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -61,9 +61,9 @@ func TestHeartbeat(t *testing.T) {
 	if err != nil || msg.ScannerID != "SCANNER-1" || strings.Contains(string(out), "ignored") {
 		t.Fatalf("%s %v", out, err)
 	}
-	const token = "body-must-not-leak"
-	err = decodeErr([]byte(`{"scanner_id":"` + token + `","kind":"","timestamp":"2026-10-08T08:00:30Z"}`))
-	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), token) {
+	const marker = "body-must-not-leak"
+	err = decodeErr([]byte(`{"scanner_id":"` + marker + `","kind":"","timestamp":"2026-10-08T08:00:30Z"}`))
+	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), marker) {
 		t.Fatal(err)
 	}
 	if err := (Message{}).Validate(); err == nil || !errors.Is(err, ErrMalformed) {

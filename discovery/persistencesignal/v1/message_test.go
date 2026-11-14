@@ -57,9 +57,9 @@ func TestPersistenceReady(t *testing.T) {
 	if err != nil || string(out) != "{}" {
 		t.Fatalf("%s %v", out, err)
 	}
-	const token = "body-must-not-leak"
-	err = decodeErr([]byte(token))
-	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), token) {
+	const marker = "body-must-not-leak"
+	err = decodeErr([]byte(marker))
+	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), marker) {
 		t.Fatal(err)
 	}
 	for _, body := range []string{"", " ", "true", "0", `"ready"`, "null", "[]", "{", "{}{}", "{}}"} {

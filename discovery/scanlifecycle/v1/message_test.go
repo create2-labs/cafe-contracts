@@ -98,13 +98,13 @@ func TestLifecycle(t *testing.T) {
 	if err != nil || string(out) != kept {
 		t.Fatalf("%s %v", out, err)
 	}
-	const token = "body-must-not-leak"
-	err = startedErr([]byte(`{"scan_id":"bad","kind":"wallet","user_id":"` + userID + `","started_at":"2026-10-08T08:00:30Z","address":"` + token + `"}`))
-	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), token) {
+	const marker = "body-must-not-leak"
+	err = startedErr([]byte(`{"scan_id":"bad","kind":"wallet","user_id":"` + userID + `","started_at":"2026-10-08T08:00:30Z","address":"` + marker + `"}`))
+	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), marker) {
 		t.Fatal(err)
 	}
-	err = completedErr([]byte(`{"scan_id":"bad","kind":"wallet","user_id":"` + userID + `","completed_at":"2026-10-08T08:00:30Z","result":"` + token + `"}`))
-	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), token) {
+	err = completedErr([]byte(`{"scan_id":"bad","kind":"wallet","user_id":"` + userID + `","completed_at":"2026-10-08T08:00:30Z","result":"` + marker + `"}`))
+	if err == nil || !errors.Is(err, ErrMalformed) || strings.Contains(err.Error(), marker) {
 		t.Fatal(err)
 	}
 	if err := (Started{ScanID: strings.ToUpper(scanID), Kind: "wallet", UserID: NilID, StartedAt: "t"}).Validate(); err == nil || !errors.Is(err, ErrMalformed) {
