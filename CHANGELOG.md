@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.2](https://github.com/create2-labs/cafe-contracts/compare/v1.1.1...v1.1.2) (2026-11-16)
+
+
+### 🐞 Bug Fixes
+
+* **deps:** upgrade golang.org/x/crypto ([21249ae](https://github.com/create2-labs/cafe-contracts/commit/21249ae096404a043b108f2c17428b342c634cb4))
+* upgrade golang.org/x/crypto to last version ([54419b4](https://github.com/create2-labs/cafe-contracts/commit/54419b41ddbc891a65313530ed6a2472e0c0acda))
+
+
+### 🧪 Tests
+
+* lint the test files ([e901d23](https://github.com/create2-labs/cafe-contracts/commit/e901d2363bdd0e0be1657cf9bcd7e85387847c70))
+* lint the test files ([86b1428](https://github.com/create2-labs/cafe-contracts/commit/86b142832dd60ab638ba64cf92d54f4f175dc7ca))
+
 ## [1.1.1](https://github.com/create2-labs/cafe-contracts/compare/v1.1.0...v1.1.1) (2026-11-11)
 
 
