@@ -36,5 +36,5 @@ jobs:
       - name: govulncheck
         run: |
           set -euo pipefail
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@1.9.0
           govulncheck ./...
