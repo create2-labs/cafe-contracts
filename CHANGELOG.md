@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.3](https://github.com/create2-labs/cafe-contracts/compare/v1.1.2...v1.1.3) (2026-11-17)
+
+
+### 🐞 Bug Fixes
+
+* govulncheck version ([a2ad290](https://github.com/create2-labs/cafe-contracts/commit/a2ad2907832097a12c1dc137299e2a904ba597e0))
+* govulncheck version for a vetter reproductibility ([a77f8ce](https://github.com/create2-labs/cafe-contracts/commit/a77f8ce9d9f230030fce932dbae70ff0a3ce08be))
+
 ## [1.1.2](https://github.com/create2-labs/cafe-contracts/compare/v1.1.1...v1.1.2) (2026-11-16)
 
 
